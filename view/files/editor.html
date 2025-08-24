@@ -163,41 +163,14 @@
     </style>
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Hugo 管理器</a>
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/">首页</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/files">文件管理</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/images">静态文件</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/deploy">部署管理</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/trash">回收站</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/settings">设置</a>
-                </li>
-            </ul>
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <button class="btn btn-outline-secondary me-2" onclick="goBack()">
-                        <i class="bi bi-arrow-left"></i> 返回列表
-                    </button>
-                </li>
-            </ul>
-        </div>
-    </nav>
+    {{ template "header" . }}
 
     <div class="container-fluid py-3">
+        <div class="mb-3">
+            <button class="btn btn-outline-secondary" onclick="goBack()">
+                <i class="bi bi-arrow-left"></i> <span data-i18n="btn_back_to_list">返回列表</span>
+            </button>
+        </div>
         <!-- 普通文件编辑器 -->
         <div class="card" id="textEditor" style="display: none;">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -421,34 +394,34 @@
         }
 
         // 加载文件内容
-        function loadFileContent(path) {
+        async function loadFileContent(path) {
             const url = '/api/file-content?path=' + encodeURIComponent(path);
             
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        showError('加载文件失败: ' + data.error);
-                        return;
-                    }
-                    
-                    // 隐藏加载状态
-                    document.getElementById('loadingCard').style.display = 'none';
-                    
-                    // 确定文件类型
-                    isMarkdown = data.is_markdown;
-                    const fileName = path.split('/').pop();
-                    
-                    if (isMarkdown) {
-                        showMarkdownEditor(fileName, data);
-                    } else {
-                        showTextEditor(fileName, data.content);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showError('网络错误，请重试');
-                });
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('加载文件失败: ' + data.error);
+                    return;
+                }
+                
+                // 隐藏加载状态
+                document.getElementById('loadingCard').style.display = 'none';
+                
+                // 确定文件类型
+                isMarkdown = data.is_markdown;
+                const fileName = path.split('/').pop();
+                
+                if (isMarkdown) {
+                    await showMarkdownEditor(fileName, data);
+                } else {
+                    showTextEditor(fileName, data.content);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('网络错误，请重试');
+            }
         }
 
         // 显示文本编辑器
@@ -459,16 +432,16 @@
         }
 
         // 显示Markdown编辑器
-        function showMarkdownEditor(fileName, data) {
+        async function showMarkdownEditor(fileName, data) {
             document.getElementById('markdownFileName').textContent = fileName;
             
             // 填充数据
             if (data.parsed) {
-                fillFrontMatterForm(data.parsed.front_matter);
+                await fillFrontMatterForm(data.parsed.front_matter);
                 document.getElementById('markdownContent').value = data.parsed.content;
             } else {
                 // 没有front matter，直接显示内容
-                clearFrontMatterForm();
+                await clearFrontMatterForm();
                 document.getElementById('markdownContent').value = data.content;
             }
             
@@ -579,13 +552,19 @@
         }
 
         // 填充Front Matter表单
-        function fillFrontMatterForm(frontMatter) {
+        async function fillFrontMatterForm(frontMatter) {
             if (!frontMatter) return;
             
             document.getElementById('frontTitle').value = frontMatter.title || '';
             document.getElementById('frontAuthor').value = frontMatter.author || '';
             document.getElementById('frontType').value = frontMatter.type || 'post';
-            document.getElementById('frontUrl').value = frontMatter.url || '';
+            
+            // 处理URL字段 - 如果为空则自动生成
+            let url = frontMatter.url || '';
+            if (!url || url.trim() === '') {
+                url = await generateAutoUrl();
+            }
+            document.getElementById('frontUrl').value = url;
             
             // 处理日期格式
             if (frontMatter.date) {
@@ -603,12 +582,52 @@
             document.getElementById('frontTags').value = (frontMatter.tags || []).join('\n');
         }
 
+        // 生成自动URL（异步版本，检查重复）
+        async function generateAutoUrl() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            // 尝试生成不重复的URL
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const randomNum = Math.floor(Math.random() * 900) + 100; // 生成100-999之间的随机数
+                const candidateUrl = `/p/${year}/${month}/${randomNum}.html`;
+                
+                // 检查URL是否已存在
+                const isUnique = await checkUrlUnique(candidateUrl);
+                if (isUnique) {
+                    return candidateUrl;
+                }
+            }
+            
+            // 如果100次尝试都重复了，使用时间戳确保唯一性
+            const timestamp = Date.now().toString().slice(-6);
+            return `/p/${year}/${month}/${timestamp}.html`;
+        }
+        
+        // 检查URL是否唯一
+        async function checkUrlUnique(url) {
+            try {
+                // 这里可以调用API检查URL是否已存在
+                // 暂时返回true，后续可以实现具体的检查逻辑
+                const response = await fetch('/api/check-url-unique?url=' + encodeURIComponent(url));
+                if (response.ok) {
+                    const result = await response.json();
+                    return result.unique;
+                }
+                return true; // 如果API调用失败，假设是唯一的
+            } catch (error) {
+                console.log('检查URL唯一性时出错，假设是唯一的:', error);
+                return true;
+            }
+        }
+
         // 清空Front Matter表单
-        function clearFrontMatterForm() {
+        async function clearFrontMatterForm() {
             document.getElementById('frontTitle').value = '';
             document.getElementById('frontAuthor').value = '';
             document.getElementById('frontType').value = 'post';
-            document.getElementById('frontUrl').value = '';
+            document.getElementById('frontUrl').value = await generateAutoUrl(); // 自动生成URL
             document.getElementById('frontDate').value = '';
             document.getElementById('frontCategories').value = '';
             document.getElementById('frontTags').value = '';
@@ -837,6 +856,7 @@
             document.getElementById('markdownContent').value = content;
         }
     </script>
+    <script src="/static/js/i18n.js"></script>
 </body>
 </html>
 {{ end }}

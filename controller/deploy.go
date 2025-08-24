@@ -27,13 +27,18 @@ func DeployManager(c *gin.Context) {
 // 获取SSH配置
 func GetSSHConfig(c *gin.Context) {
     sshConfig := config.GetSSHConfig()
-    // 不返回密码到前端
+    // 不返回明文凭据到前端
+    sshConfig.Username = ""
     sshConfig.Password = ""
     deploymentInfo := config.GetDeploymentInfo()
     
     c.JSON(200, gin.H{
-        "ssh":        sshConfig,
-        "deployment": deploymentInfo,
+        "ssh":         sshConfig,
+        "deployment":  deploymentInfo,
+        "has_encrypted_credentials": config.HasEncryptedSSHCredentials(),
+        "has_plaintext_credentials": config.HasPlaintextSSHCredentials(),
+        "needs_decryption":         config.NeedsDecryption(),
+        "is_decrypted":             config.IsDecryptionKeySet(),
     })
 }
 
@@ -92,8 +97,14 @@ func BuildHugo(c *gin.Context) {
         }
     }
     
+    // 广播构建开始
+    utils.BroadcastBuildProgress("正在构建Hugo静态文件...", 0)
+    
     // 更新构建状态
     config.UpdateDeploymentStatus("building", "正在构建Hugo静态文件...")
+    
+    // 广播构建进度
+    utils.BroadcastBuildProgress("正在执行Hugo构建命令...", 50)
     
     // 执行Hugo构建
     cmd := exec.Command("hugo", "--source", projectPath)
@@ -102,6 +113,7 @@ func BuildHugo(c *gin.Context) {
     
     if err != nil {
         config.UpdateDeploymentStatus("failed", "Hugo构建失败: " + err.Error())
+        utils.BroadcastError("build", "Hugo构建失败: " + err.Error())
         c.JSON(500, gin.H{
             "error":  "Hugo构建失败: " + err.Error(),
             "output": outputStr,
@@ -110,6 +122,7 @@ func BuildHugo(c *gin.Context) {
     }
     
     config.UpdateDeploymentStatus("success", "Hugo构建完成")
+    utils.BroadcastComplete("build", "Hugo构建完成", 100)
     c.JSON(200, gin.H{
         "message": "Hugo构建成功",
         "output":  outputStr,
@@ -136,6 +149,9 @@ func DeployToServer(c *gin.Context) {
     
     // 更新部署状态为开始部署
     config.UpdateDeploymentStatus("deploying", "正在部署文件到服务器...")
+    
+    // 广播部署开始
+    utils.BroadcastDeployProgress("正在连接服务器...", 0, 100, 0, "")
     
     // 使用原生Go SSH进行部署
     result, err := utils.ExecuteDeployment(sshConfig, publicDir, sshConfig.RemotePath, false)
@@ -258,6 +274,9 @@ func BuildAndDeploy(c *gin.Context) {
     // 更新构建状态
     config.UpdateDeploymentStatus("building", "正在构建Hugo静态文件...")
     
+    // 广播构建开始
+    utils.BroadcastBuildProgress("正在构建Hugo静态文件...", 0)
+    
     // 执行Hugo构建
     buildCmd := exec.Command("hugo", "--source", projectPath)
     buildOutput, err := buildCmd.CombinedOutput()
@@ -265,6 +284,7 @@ func BuildAndDeploy(c *gin.Context) {
     
     if err != nil {
         config.UpdateDeploymentStatus("failed", "Hugo构建失败: " + err.Error())
+        utils.BroadcastError("build", "Hugo构建失败: " + err.Error())
         c.JSON(500, gin.H{
             "error":  "Hugo构建失败: " + err.Error(),
             "output": buildOutputStr,
@@ -272,11 +292,15 @@ func BuildAndDeploy(c *gin.Context) {
         return
     }
     
+    // 广播构建完成
+    utils.BroadcastComplete("build", "Hugo构建完成", 100)
+    
     // 然后部署
     sshConfig := config.GetSSHConfig()
     
     if sshConfig.Host == "" || sshConfig.Username == "" || sshConfig.RemotePath == "" {
         config.UpdateDeploymentStatus("failed", "SSH配置不完整")
+        utils.BroadcastError("deploy", "SSH配置不完整")
         c.JSON(400, gin.H{
             "error":        "SSH配置不完整，请先配置SSH连接信息",
             "build_output": buildOutputStr,
@@ -286,6 +310,9 @@ func BuildAndDeploy(c *gin.Context) {
     
     // 更新部署状态
     config.UpdateDeploymentStatus("deploying", "正在部署文件到服务器...")
+    
+    // 广播部署开始
+    utils.BroadcastDeployProgress("正在连接服务器...", 0, 100, 0, "")
     
     publicDir := config.GetPublicDir()
     
@@ -674,5 +701,137 @@ func GetDeploymentStatus(c *gin.Context) {
         "deployment":      deploymentInfo,
         "pending_tasks":   pendingTasks,
         "is_paused":       config.IsDeploymentPaused(),
+    })
+}
+
+// 启动Hugo serve
+func StartHugoServe(c *gin.Context) {
+    var request struct {
+        Port int `json:"port"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(400, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    // 默认端口
+    if request.Port <= 0 {
+        request.Port = 1313
+    }
+    
+    hugoManager := utils.GetHugoServeManager()
+    if err := hugoManager.Start(request.Port); err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(200, gin.H{
+        "message": "Hugo serve启动成功",
+        "status":  hugoManager.GetStatus(),
+    })
+}
+
+// 停止Hugo serve
+func StopHugoServe(c *gin.Context) {
+    hugoManager := utils.GetHugoServeManager()
+    if err := hugoManager.Stop(); err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(200, gin.H{
+        "message": "Hugo serve已停止",
+        "status":  hugoManager.GetStatus(),
+    })
+}
+
+// 重启Hugo serve
+func RestartHugoServe(c *gin.Context) {
+    hugoManager := utils.GetHugoServeManager()
+    if err := hugoManager.Restart(); err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(200, gin.H{
+        "message": "Hugo serve重启成功",
+        "status":  hugoManager.GetStatus(),
+    })
+}
+
+// 获取Hugo serve状态
+func GetHugoServeStatus(c *gin.Context) {
+    hugoManager := utils.GetHugoServeManager()
+    c.JSON(200, gin.H{
+        "status": hugoManager.GetStatus(),
+    })
+}
+
+// 加密现有的明文凭据
+func EncryptPlaintextCredentials(c *gin.Context) {
+    var request struct {
+        MasterPassword string `json:"master_password"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(400, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.MasterPassword == "" {
+        c.JSON(400, gin.H{"error": "主密码不能为空"})
+        return
+    }
+    
+    if err := config.EncryptExistingCredentials(request.MasterPassword); err != nil {
+        c.JSON(500, gin.H{"error": "加密失败: " + err.Error()})
+        return
+    }
+    
+    c.JSON(200, gin.H{
+        "message": "凭据加密成功",
+        "encrypted": true,
+    })
+}
+
+// 更新主密码（重新加密所有凭据）
+func UpdateMasterPassword(c *gin.Context) {
+    var request struct {
+        OldMasterPassword string `json:"old_master_password"`
+        NewMasterPassword string `json:"new_master_password"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(400, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.OldMasterPassword == "" || request.NewMasterPassword == "" {
+        c.JSON(400, gin.H{"error": "旧密码和新密码都不能为空"})
+        return
+    }
+    
+    // 首先用旧密码解密
+    if err := config.SetDecryptionKey(request.OldMasterPassword); err != nil {
+        c.JSON(400, gin.H{"error": "旧主密码错误"})
+        return
+    }
+    
+    // 获取解密后的凭据
+    sshConfig := config.GetSSHConfig()
+    
+    // 用新密码重新加密
+    if err := config.SetSSHConfigWithEncryption(sshConfig, request.NewMasterPassword); err != nil {
+        c.JSON(500, gin.H{"error": "重新加密失败: " + err.Error()})
+        return
+    }
+    
+    // 设置新的解密密钥
+    config.SetDecryptionKey(request.NewMasterPassword)
+    
+    c.JSON(200, gin.H{
+        "message": "主密码更新成功",
+        "updated": true,
     })
 }

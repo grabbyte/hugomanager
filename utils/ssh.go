@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -245,9 +246,13 @@ func (c *SSHClient) transferFiles(ctx context.Context, localPath, remotePath str
 	// 设置为非暂停状态
 	config.SetDeploymentPaused(false)
 	
+	// 广播部署开始
+	BroadcastDeployProgress("正在准备文件传输...", 0, len(fileTasks), 0, "")
+	
 	// 并发传输文件
 	err := c.transferFilesConcurrently(ctx, fileTasks)
 	if err != nil {
+		BroadcastError("deploy", fmt.Sprintf("文件传输失败: %v", err))
 		return &DeployResult{
 			Success: false,
 			Message: fmt.Sprintf("文件传输失败: %v", err),
@@ -262,6 +267,11 @@ func (c *SSHClient) transferFiles(ctx context.Context, localPath, remotePath str
 	
 	// 清理完成的任务
 	config.RemoveCompletedTasks()
+	
+	// 广播完成消息
+	BroadcastComplete("deploy", 
+		fmt.Sprintf("部署完成！传输了 %d 个文件，共 %d 字节", len(fileTasks), totalSize), 
+		len(fileTasks))
 	
 	result.Success = true
 	result.Message = "文件传输完成"
@@ -409,6 +419,10 @@ func generateTaskID() string {
 func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileTask) error {
 	const maxConcurrency = 4 // 最大并发数
 	
+	// 进度跟踪
+	var completedCount int32 = 0
+	totalTasks := len(tasks)
+	
 	// 创建工作池
 	taskChan := make(chan FileTask, len(tasks))
 	errorChan := make(chan error, maxConcurrency)
@@ -452,6 +466,17 @@ func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileT
 				fmt.Printf("[Worker %d] 传输文件: %s -> %s (%d 字节)\n", 
 					workerID+1, task.LocalFile, task.RemoteFile, task.Size)
 				
+				// 广播当前文件进度
+				currentCount := atomic.LoadInt32(&completedCount)
+				progress := int(float64(currentCount) / float64(totalTasks) * 100)
+				BroadcastDeployProgress(
+					fmt.Sprintf("正在上传文件 (%d/%d)", currentCount+1, totalTasks),
+					progress,
+					totalTasks,
+					int(currentCount),
+					filepath.Base(task.RemoteFile),
+				)
+				
 				err := c.uploadSingleFile(task)
 				if err != nil {
 					select {
@@ -461,8 +486,21 @@ func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileT
 					return
 				}
 				
-				// 标记任务为已完成
+				// 标记任务为已完成并更新计数
+				// 注意：如果文件不存在，uploadSingleFile会删除记录并返回nil
+				// 这种情况下我们也要标记为完成并更新计数
 				c.markTaskCompleted(task)
+				completed := atomic.AddInt32(&completedCount, 1)
+				
+				// 广播进度更新
+				progress = int(float64(completed) / float64(totalTasks) * 100)
+				BroadcastDeployProgress(
+					fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
+					progress,
+					totalTasks,
+					int(completed),
+					"",
+				)
 			}
 		}(i)
 	}
@@ -512,19 +550,53 @@ func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileT
 // 标记任务为已完成
 func (c *SSHClient) markTaskCompleted(task FileTask) {
 	existingTasks := config.GetUploadTasks()
+	found := false
 	for _, uploadTask := range existingTasks {
 		if uploadTask.LocalFile == task.LocalFile && uploadTask.RemoteFile == task.RemoteFile {
 			config.MarkTaskCompleted(uploadTask.ID)
 			fmt.Printf("标记任务完成: %s\n", task.RemoteFile)
+			found = true
 			break
 		}
 	}
+	
+	// 如果没找到任务记录，说明可能已经被删除了（文件不存在的情况）
+	if !found {
+		fmt.Printf("任务记录已不存在（可能已被删除）: %s\n", task.RemoteFile)
+	}
+}
+
+// 删除指定文件的上传任务记录
+func (c *SSHClient) removeUploadTaskByFile(localFile, remoteFile string) {
+	existingTasks := config.GetUploadTasks()
+	var remainingTasks []config.UploadTask
+	
+	for _, uploadTask := range existingTasks {
+		// 保留不匹配的任务
+		if !(uploadTask.LocalFile == localFile && uploadTask.RemoteFile == remoteFile) {
+			remainingTasks = append(remainingTasks, uploadTask)
+		}
+	}
+	
+	// 更新任务列表
+	config.SetUploadTasks(remainingTasks)
+	fmt.Printf("删除无效上传记录: %s -> %s\n", localFile, remoteFile)
 }
 
 // 上传单个文件
 func (c *SSHClient) uploadSingleFile(task FileTask) error {
+	// 检查本地文件是否存在
+	if _, err := os.Stat(task.LocalFile); os.IsNotExist(err) {
+		// 文件不存在，删除上传任务记录并跳过
+		fmt.Printf("本地文件不存在，删除上传记录: %s\n", task.LocalFile)
+		c.removeUploadTaskByFile(task.LocalFile, task.RemoteFile)
+		return nil // 返回nil表示任务处理完成（通过删除记录）
+	}
+	
 	// 确保远程目录存在
 	remoteDir := filepath.Dir(task.RemoteFile)
+	// 确保使用Unix路径分隔符（因为远程服务器是Linux）
+	remoteDir = strings.ReplaceAll(remoteDir, "\\", "/")
 	if err := c.createRemoteDirectory(remoteDir); err != nil {
 		return fmt.Errorf("无法创建远程目录 %s: %v", remoteDir, err)
 	}
@@ -538,26 +610,36 @@ func (c *SSHClient) uploadSingleFile(task FileTask) error {
 	// 创建SSH会话
 	session, err := c.client.NewSession()
 	if err != nil {
-		return err
+		return fmt.Errorf("创建SSH会话失败: %v", err)
 	}
 	defer session.Close()
 	
+	// 捕获stderr输出用于错误诊断
+	var stderr strings.Builder
+	session.Stderr = &stderr
+	
 	// 使用cat命令直接写入文件
-	cmd := fmt.Sprintf("cat > %s", task.RemoteFile)
+	// 确保使用Unix路径分隔符（因为远程服务器是Linux）
+	remoteFile := strings.ReplaceAll(task.RemoteFile, "\\", "/")
+	cmd := fmt.Sprintf("cat > %s", remoteFile)
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		return err
+		return fmt.Errorf("创建stdin管道失败: %v", err)
 	}
 	
 	if err := session.Start(cmd); err != nil {
-		return err
+		return fmt.Errorf("启动上传命令失败: %v", err)
 	}
 	
 	// 写入文件内容
 	_, err = stdin.Write(localData)
 	if err != nil {
 		stdin.Close()
-		return err
+		stderrOutput := stderr.String()
+		if stderrOutput != "" {
+			return fmt.Errorf("写入数据失败: %v, 错误输出: %s", err, stderrOutput)
+		}
+		return fmt.Errorf("写入数据失败: %v", err)
 	}
 	
 	// 关闭stdin以发送EOF
@@ -565,16 +647,54 @@ func (c *SSHClient) uploadSingleFile(task FileTask) error {
 	
 	// 等待命令完成
 	if err := session.Wait(); err != nil {
+		stderrOutput := stderr.String()
+		if stderrOutput != "" {
+			// 分析具体错误原因
+			return c.analyzeUploadError(err, stderrOutput, task.RemoteFile)
+		}
 		return fmt.Errorf("文件上传失败: %v", err)
 	}
 	
 	// 验证文件是否上传成功
-	if err := c.verifyFileUpload(task.RemoteFile, task.Size); err != nil {
+	if err := c.verifyFileUpload(remoteFile, task.Size); err != nil {
 		return fmt.Errorf("文件上传验证失败: %v", err)
 	}
 	
 	// 设置文件时间戳
-	return c.setFileAttributes(task.RemoteFile, task.ModTime)
+	return c.setFileAttributes(remoteFile, task.ModTime)
+}
+
+// 分析上传错误原因
+func (c *SSHClient) analyzeUploadError(err error, stderrOutput, remoteFile string) error {
+	stderrLower := strings.ToLower(stderrOutput)
+	
+	if strings.Contains(stderrLower, "permission denied") {
+		return fmt.Errorf("权限被拒绝: 远程目录 %s 没有写权限。错误: %v, 详情: %s", 
+			filepath.Dir(remoteFile), err, stderrOutput)
+	}
+	
+	if strings.Contains(stderrLower, "no space left") || strings.Contains(stderrLower, "disk full") {
+		return fmt.Errorf("磁盘空间不足: 远程服务器磁盘已满。错误: %v, 详情: %s", 
+			err, stderrOutput)
+	}
+	
+	if strings.Contains(stderrLower, "no such file or directory") {
+		return fmt.Errorf("目录不存在: 远程目录 %s 不存在。错误: %v, 详情: %s", 
+			filepath.Dir(remoteFile), err, stderrOutput)
+	}
+	
+	if strings.Contains(stderrLower, "read-only") {
+		return fmt.Errorf("只读文件系统: 远程目录为只读。错误: %v, 详情: %s", 
+			err, stderrOutput)
+	}
+	
+	if strings.Contains(stderrLower, "connection") {
+		return fmt.Errorf("连接问题: SSH连接不稳定。错误: %v, 详情: %s", 
+			err, stderrOutput)
+	}
+	
+	// 通用错误
+	return fmt.Errorf("文件上传失败: %v, 详细错误: %s", err, stderrOutput)
 }
 
 // 验证文件上传
@@ -623,12 +743,32 @@ func (c *SSHClient) setFileAttributes(remoteFile string, modTime time.Time) erro
 func (c *SSHClient) createRemoteDirectory(remotePath string) error {
 	session, err := c.client.NewSession()
 	if err != nil {
-		return err
+		return fmt.Errorf("创建SSH会话失败: %v", err)
 	}
 	defer session.Close()
 	
+	// 捕获stderr输出
+	var stderr strings.Builder
+	session.Stderr = &stderr
+	
 	cmd := fmt.Sprintf("mkdir -p %s", remotePath)
-	return session.Run(cmd)
+	if err := session.Run(cmd); err != nil {
+		stderrOutput := stderr.String()
+		if stderrOutput != "" {
+			if strings.Contains(strings.ToLower(stderrOutput), "permission denied") {
+				return fmt.Errorf("权限被拒绝: 无法创建目录 %s，请检查父目录权限。详情: %s", 
+					remotePath, stderrOutput)
+			}
+			if strings.Contains(strings.ToLower(stderrOutput), "no space left") {
+				return fmt.Errorf("磁盘空间不足: 无法创建目录 %s。详情: %s", 
+					remotePath, stderrOutput)
+			}
+			return fmt.Errorf("创建目录失败: %v, 详情: %s", err, stderrOutput)
+		}
+		return fmt.Errorf("创建目录失败: %v", err)
+	}
+	
+	return nil
 }
 
 

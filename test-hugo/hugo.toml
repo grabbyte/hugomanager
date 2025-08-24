@@ -1,0 +1,8 @@
+baseURL = "http://localhost:1313"
+languageCode = "zh-CN"
+title = "测试博客"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true

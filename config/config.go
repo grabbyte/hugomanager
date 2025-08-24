@@ -17,8 +17,9 @@ import (
 type SSHConfig struct {
     Host              string `json:"host"`
     Port              int    `json:"port"`
-    Username          string `json:"username"`
-    Password          string `json:"password,omitempty"`          // 运行时明文密码
+    Username          string `json:"username,omitempty"`           // 运行时明文用户名
+    EncryptedUsername string `json:"encrypted_username,omitempty"` // 存储时加密用户名
+    Password          string `json:"password,omitempty"`           // 运行时明文密码
     EncryptedPassword string `json:"encrypted_password,omitempty"` // 存储时加密密码
     KeyPath           string `json:"key_path,omitempty"`
     RemotePath        string `json:"remote_path"`
@@ -33,6 +34,20 @@ type UploadTask struct {
     CreatedAt        time.Time `json:"created_at"`
 }
 
+type ProgressInfo struct {
+    Type        string    `json:"type"`         // "build", "deploy", "complete"
+    Status      string    `json:"status"`       // "building", "deploying", "success", "failed", "paused"
+    Message     string    `json:"message"`      // 当前状态描述
+    Progress    int       `json:"progress"`     // 进度百分比 0-100
+    Total       int       `json:"total"`        // 总任务数
+    Current     int       `json:"current"`      // 当前完成数
+    CurrentFile string    `json:"current_file"` // 当前处理的文件
+    Speed       string    `json:"speed"`        // 传输速度
+    ETA         string    `json:"eta"`          // 预计剩余时间
+    StartTime   *time.Time `json:"start_time,omitempty"` // 开始时间
+    UpdateTime  time.Time `json:"update_time"`  // 最后更新时间
+}
+
 type DeploymentInfo struct {
     LastSyncTime     *time.Time    `json:"last_sync_time,omitempty"`
     LastSyncStatus   string        `json:"last_sync_status,omitempty"`   // "success", "failed", "building", "deploying", "paused"
@@ -41,12 +56,15 @@ type DeploymentInfo struct {
     BytesTransferred int64         `json:"bytes_transferred,omitempty"`
     UploadTasks      []UploadTask  `json:"upload_tasks,omitempty"`       // 待上传任务队列
     IsPaused         bool          `json:"is_paused,omitempty"`          // 是否暂停
+    Progress         ProgressInfo  `json:"progress,omitempty"`           // 实时进度信息
 }
 
 type Config struct {
     HugoProjectPath string         `json:"hugo_project_path"`
     SSH             SSHConfig      `json:"ssh"`
     Deployment      DeploymentInfo `json:"deployment"`
+    Language        string         `json:"language,omitempty"`        // 用户主动设置的语言
+    UserSetLanguage bool           `json:"user_set_language,omitempty"` // 标记是否用户主动设置
 }
 
 var currentConfig Config
@@ -54,6 +72,34 @@ var decryptionKey string // 运行时解密密钥
 
 func init() {
     LoadConfig()
+}
+
+// 语言配置相关函数
+func GetLanguage() string {
+    if currentConfig.Language == "" {
+        return "en-US" // 默认英文
+    }
+    return currentConfig.Language
+}
+
+func SetLanguage(language string) {
+    currentConfig.Language = language
+    currentConfig.UserSetLanguage = true // 标记为用户主动设置
+    SaveConfig()
+}
+
+// 检查是否用户主动设置了语言
+func IsUserSetLanguage() bool {
+    return currentConfig.UserSetLanguage
+}
+
+// 获取浏览器语言（由前端调用时传入）
+func SetBrowserLanguage(language string) {
+    // 只有用户没有主动设置语言时，才使用浏览器语言
+    if !currentConfig.UserSetLanguage {
+        currentConfig.Language = language
+        // 不保存到配置文件，保持为自动检测状态
+    }
 }
 
 func LoadConfig() {
@@ -231,15 +277,35 @@ func decrypt(ciphertext, password string) (string, error) {
 func SetDecryptionKey(key string) error {
     decryptionKey = key
     
-    // 尝试解密SSH密码验证密钥是否正确
-    if currentConfig.SSH.EncryptedPassword != "" {
-        _, err := decrypt(currentConfig.SSH.EncryptedPassword, decryptionKey)
+    // 尝试解密SSH凭据验证密钥是否正确
+    var decryptionErrors []error
+    
+    // 解密用户名
+    if currentConfig.SSH.EncryptedUsername != "" {
+        username, err := decrypt(currentConfig.SSH.EncryptedUsername, decryptionKey)
         if err != nil {
-            decryptionKey = ""
-            return errors.New("解密密钥错误")
+            decryptionErrors = append(decryptionErrors, err)
+        } else {
+            currentConfig.SSH.Username = username
         }
-        // 解密成功，更新运行时密码
-        currentConfig.SSH.Password, _ = decrypt(currentConfig.SSH.EncryptedPassword, decryptionKey)
+    }
+    
+    // 解密密码
+    if currentConfig.SSH.EncryptedPassword != "" {
+        password, err := decrypt(currentConfig.SSH.EncryptedPassword, decryptionKey)
+        if err != nil {
+            decryptionErrors = append(decryptionErrors, err)
+        } else {
+            currentConfig.SSH.Password = password
+        }
+    }
+    
+    // 如果有任何解密错误，重置密钥
+    if len(decryptionErrors) > 0 {
+        decryptionKey = ""
+        currentConfig.SSH.Username = ""
+        currentConfig.SSH.Password = ""
+        return errors.New("解密密钥错误")
     }
     
     return nil
@@ -250,8 +316,71 @@ func IsDecryptionKeySet() bool {
     return decryptionKey != ""
 }
 
+// 检查是否有加密的SSH凭据
+func HasEncryptedSSHCredentials() bool {
+    return currentConfig.SSH.EncryptedUsername != "" || currentConfig.SSH.EncryptedPassword != ""
+}
+
+// 检查SSH凭据是否需要解密
+func NeedsDecryption() bool {
+    return HasEncryptedSSHCredentials() && !IsDecryptionKeySet()
+}
+
+// 检查是否有明文的SSH凭据
+func HasPlaintextSSHCredentials() bool {
+    return (currentConfig.SSH.Username != "" && currentConfig.SSH.EncryptedUsername == "") ||
+           (currentConfig.SSH.Password != "" && currentConfig.SSH.EncryptedPassword == "")
+}
+
+// 加密现有的明文凭据
+func EncryptExistingCredentials(masterPassword string) error {
+    modified := false
+    ssh := currentConfig.SSH
+    
+    // 如果有明文用户名且没有加密版本，进行加密
+    if ssh.Username != "" && ssh.EncryptedUsername == "" {
+        encryptedUsername, err := encrypt(ssh.Username, masterPassword)
+        if err != nil {
+            return err
+        }
+        ssh.EncryptedUsername = encryptedUsername
+        modified = true
+    }
+    
+    // 如果有明文密码且没有加密版本，进行加密
+    if ssh.Password != "" && ssh.EncryptedPassword == "" {
+        encryptedPassword, err := encrypt(ssh.Password, masterPassword)
+        if err != nil {
+            return err
+        }
+        ssh.EncryptedPassword = encryptedPassword
+        modified = true
+    }
+    
+    if modified {
+        currentConfig.SSH = ssh
+        // 设置解密密钥以便后续使用
+        decryptionKey = masterPassword
+        // 保存配置（会清除明文凭据）
+        return SaveConfigWithEncryption()
+    }
+    
+    return nil
+}
+
 // 加密并保存SSH配置
 func SetSSHConfigWithEncryption(ssh SSHConfig, masterPassword string) error {
+    // 加密用户名
+    if ssh.Username != "" {
+        encryptedUsername, err := encrypt(ssh.Username, masterPassword)
+        if err != nil {
+            return err
+        }
+        ssh.EncryptedUsername = encryptedUsername
+        ssh.Username = "" // 清除明文用户名，不保存到文件
+    }
+    
+    // 加密密码
     if ssh.Password != "" {
         encryptedPassword, err := encrypt(ssh.Password, masterPassword)
         if err != nil {
@@ -270,7 +399,8 @@ func SaveConfigWithEncryption() error {
     // 创建配置副本用于保存
     configToSave := currentConfig
     
-    // 清除运行时明文密码
+    // 清除运行时明文凭据，只保存加密后的版本
+    configToSave.SSH.Username = ""
     configToSave.SSH.Password = ""
     
     data, err := json.MarshalIndent(configToSave, "", "  ")
@@ -338,4 +468,65 @@ func GetPendingTasksCount() int {
         }
     }
     return count
+}
+
+// 进度管理函数
+func UpdateProgress(progressType, status, message string, progress, total, current int, currentFile, speed, eta string) {
+    now := time.Now()
+    
+    // 如果是新任务，设置开始时间
+    if currentConfig.Deployment.Progress.StartTime == nil && (status == "building" || status == "deploying") {
+        currentConfig.Deployment.Progress.StartTime = &now
+    }
+    
+    currentConfig.Deployment.Progress = ProgressInfo{
+        Type:        progressType,
+        Status:      status,
+        Message:     message,
+        Progress:    progress,
+        Total:       total,
+        Current:     current,
+        CurrentFile: currentFile,
+        Speed:       speed,
+        ETA:         eta,
+        StartTime:   currentConfig.Deployment.Progress.StartTime,
+        UpdateTime:  now,
+    }
+    
+    // 同时更新部署状态
+    currentConfig.Deployment.LastSyncStatus = status
+    currentConfig.Deployment.LastSyncMessage = message
+    
+    if status == "success" || status == "failed" {
+        currentConfig.Deployment.LastSyncTime = &now
+        // 任务完成时清除开始时间
+        currentConfig.Deployment.Progress.StartTime = nil
+    }
+    
+    SaveConfig()
+}
+
+// 获取当前进度信息
+func GetCurrentProgress() ProgressInfo {
+    return currentConfig.Deployment.Progress
+}
+
+// 清除进度信息
+func ClearProgress() {
+    currentConfig.Deployment.Progress = ProgressInfo{}
+    SaveConfig()
+}
+
+// 检查是否有正在进行的任务
+func HasActiveTask() bool {
+    status := currentConfig.Deployment.Progress.Status
+    return status == "building" || status == "deploying"
+}
+
+// 计算任务持续时间
+func GetTaskDuration() time.Duration {
+    if currentConfig.Deployment.Progress.StartTime == nil {
+        return 0
+    }
+    return time.Since(*currentConfig.Deployment.Progress.StartTime)
 }

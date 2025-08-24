@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 进度测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .connecting { background: #fff3cd; }
+        .connected { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .progress-bar { 
+            width: 100%; 
+            height: 20px; 
+            background: #f0f0f0; 
+            border-radius: 10px; 
+            overflow: hidden; 
+            margin: 10px 0;
+        }
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #28a745, #20c997); 
+            transition: width 0.3s ease; 
+            width: 0%;
+        }
+        .log { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 5px; 
+            height: 300px; 
+            overflow-y: auto; 
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket 实时进度测试</h1>
+    
+    <div id="status" class="status connecting">正在连接...</div>
+    
+    <div>
+        <strong>进度状态:</strong>
+        <div id="progress-info">等待连接</div>
+        <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div id="progress-text">0%</div>
+    </div>
+    
+    <div>
+        <strong>当前文件:</strong>
+        <div id="current-file">--</div>
+    </div>
+    
+    <div>
+        <strong>日志:</strong>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        
+        function connectWebSocket() {
+            const wsUrl = `ws://localhost:8080/ws/progress`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    updateStatus('已连接到服务器', 'connected');
+                    addLog('WebSocket 连接已建立');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleProgressUpdate(data);
+                        addLog(`收到消息: ${JSON.stringify(data, null, 2)}`);
+                    } catch (e) {
+                        addLog(`解析消息失败: ${e.message}`);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    updateStatus('连接已断开', 'error');
+                    addLog('WebSocket 连接已关闭');
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('连接错误', 'error');
+                    addLog(`WebSocket 错误: ${error}`);
+                };
+            } catch (e) {
+                updateStatus('连接失败', 'error');
+                addLog(`创建连接失败: ${e.message}`);
+            }
+        }
+        
+        function updateStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        function handleProgressUpdate(data) {
+            const progressInfo = document.getElementById('progress-info');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            const currentFile = document.getElementById('current-file');
+            
+            progressInfo.textContent = data.message || '进行中';
+            progressFill.style.width = (data.progress || 0) + '%';
+            progressText.textContent = (data.progress || 0) + '%';
+            currentFile.textContent = data.current_file || '--';
+            
+            if (data.total && data.current !== undefined) {
+                progressInfo.textContent += ` (${data.current}/${data.total})`;
+            }
+        }
+        
+        function addLog(message) {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // 页面加载时连接
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>

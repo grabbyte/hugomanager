@@ -9,50 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-house-door"></i> Hugo 管理器
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">
-                            <i class="bi bi-house"></i> 首页
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/files">
-                            <i class="bi bi-folder"></i> 文件管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/images">
-                            <i class="bi bi-folder2-open"></i> 静态文件
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/deploy">
-                            <i class="bi bi-cloud-upload"></i> 部署管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/trash">
-                            <i class="bi bi-trash"></i> 回收站
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/settings">
-                            <i class="bi bi-gear"></i> 设置
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    {{ template "header" . }}
     <div class="container mt-4">
         <h2>项目设置</h2>
         
@@ -156,7 +113,6 @@
                                     <option value="zh-cn">中文 (zh-cn)</option>
                                     <option value="en">English (en)</option>
                                     <option value="ja">日本語 (ja)</option>
-                                    <option value="ko">한국어 (ko)</option>
                                 </select>
                             </div>
                         </div>
@@ -522,6 +478,7 @@
             });
         }
     </script>
+    <script src="/static/js/i18n.js"></script>
 </body>
 </html>
 {{ end }}

@@ -172,84 +172,10 @@
             font-size: 13px;
             color: #495057;
         }
-        
-        .worker-status {
-            margin-top: 15px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-        }
-        
-        .worker-item {
-            padding: 8px 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .worker-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #28a745;
-            animation: workerPulse 1.5s ease-in-out infinite;
-        }
-        
-        @keyframes workerPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
     </style>
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-house-door"></i> Hugo 管理器
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">
-                            <i class="bi bi-house"></i> 首页
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/files">
-                            <i class="bi bi-folder"></i> 文件管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/images">
-                            <i class="bi bi-folder2-open"></i> 静态文件
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/deploy">
-                            <i class="bi bi-cloud-upload"></i> 部署管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/trash">
-                            <i class="bi bi-trash"></i> 回收站
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/settings">
-                            <i class="bi bi-gear"></i> 设置
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    {{ template "header" . }}
 
     <!-- 主标题区域 -->
     <div class="deploy-section">
@@ -453,6 +379,21 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row mt-3" id="plaintextAlert" style="display: none;">
+                            <div class="col-12">
+                                <div class="alert alert-danger">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-exclamation-triangle"></i> 
+                                            检测到明文存储的SSH凭据，建议立即加密以保护安全
+                                        </div>
+                                        <button class="btn btn-sm btn-danger" onclick="showEncryptCredentialsModal()">
+                                            <i class="bi bi-shield-lock"></i> 立即加密
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -522,6 +463,66 @@
             </div>
         </div>
 
+        <!-- Hugo预览服务区域 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0" id="serveTitle">
+                            <i class="bi bi-eye"></i> Hugo 预览服务
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="d-flex justify-content-center align-items-center mb-2">
+                                        <span class="status-indicator" id="hugoServeIndicator"></span>
+                                        <span id="hugoServeStatus">未运行</span>
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-success btn-sm" id="startServeBtn" onclick="startHugoServe()">
+                                            <i class="bi bi-play-fill"></i> 启动
+                                        </button>
+                                        <button class="btn btn-warning btn-sm" id="restartServeBtn" onclick="restartHugoServe()" disabled>
+                                            <i class="bi bi-arrow-clockwise"></i> 重启
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" id="stopServeBtn" onclick="stopHugoServe()" disabled>
+                                            <i class="bi bi-stop-fill"></i> 停止
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h5 mb-1" id="hugoServePort">1313</div>
+                                    <small class="text-muted">服务端口</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h5 mb-1" id="hugoServeUrl">-</div>
+                                    <small class="text-muted">预览地址</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <button class="btn btn-outline-primary btn-sm" id="openPreviewBtn" onclick="openPreview()" disabled>
+                                        <i class="bi bi-box-arrow-up-right"></i> 打开预览
+                                    </button>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshHugoServeStatus()">
+                                            <i class="bi bi-arrow-clockwise"></i> 刷新状态
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 上传进度控制区域 -->
         <div class="row mb-4" id="uploadProgressSection" style="display: none;">
             <div class="col-12">
@@ -558,17 +559,6 @@
                                     <div><strong>进度统计:</strong></div>
                                     <div id="uploadStats">0 / 0 文件 (0 B)</div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 工作线程状态 -->
-                        <div class="worker-status mb-3">
-                            <div><strong>工作线程状态:</strong></div>
-                            <div class="worker-grid mt-2" id="workerStatus">
-                                <div class="worker-item">Worker 1: 等待</div>
-                                <div class="worker-item">Worker 2: 等待</div>
-                                <div class="worker-item">Worker 3: 等待</div>
-                                <div class="worker-item">Worker 4: 等待</div>
                             </div>
                         </div>
                         
@@ -657,6 +647,56 @@
         </div>
     </div>
 
+    <!-- 加密凭据模态框 -->
+    <div class="modal fade" id="encryptCredentialsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-shield-lock"></i> 加密SSH凭据
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        检测到您的SSH密码以明文形式存储，这可能存在安全风险。建议立即加密存储。
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="bi bi-key"></i> 设置主密码
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="encryptMasterPassword" placeholder="创建一个强主密码">
+                            <button class="btn btn-outline-secondary" type="button" onclick="toggleEncryptPasswordVisibility()">
+                                <i class="bi bi-eye" id="encryptPasswordToggleIcon"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            此主密码将用于加密您的SSH凭据，请务必牢记！
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">确认主密码</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="confirmMasterPassword" placeholder="再次输入主密码">
+                            <button class="btn btn-outline-secondary" type="button" onclick="toggleConfirmPasswordVisibility()">
+                                <i class="bi bi-eye" id="confirmPasswordToggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="encryptionResult"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="encryptCredentials()">
+                        <i class="bi bi-shield-lock"></i> 立即加密
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="text-center mt-5 py-4 bg-light">
         <div class="container">
             <p class="text-muted mb-0">Hugo Manager © 2025 - 让博客部署更简单</p>
@@ -666,6 +706,169 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     
     <script>
+        // WebSocket连接管理
+        let ws = null;
+        let isConnecting = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        
+        // 连接WebSocket
+        function connectWebSocket() {
+            if (isConnecting || (ws && ws.readyState === WebSocket.OPEN)) {
+                return;
+            }
+            
+            isConnecting = true;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/progress`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket 连接已建立');
+                    isConnecting = false;
+                    reconnectAttempts = 0;
+                    showNotification('实时进度连接已建立', 'success', 2000);
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleProgressUpdate(data);
+                    } catch (e) {
+                        console.error('解析WebSocket消息失败:', e);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket 连接已关闭');
+                    isConnecting = false;
+                    ws = null;
+                    
+                    // 尝试重连
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        setTimeout(() => {
+                            console.log(`尝试重连 WebSocket (${reconnectAttempts}/${maxReconnectAttempts})`);
+                            connectWebSocket();
+                        }, 2000 * reconnectAttempts);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket 错误:', error);
+                    isConnecting = false;
+                };
+            } catch (e) {
+                console.error('创建WebSocket连接失败:', e);
+                isConnecting = false;
+            }
+        }
+        
+        // 处理进度更新
+        function handleProgressUpdate(data) {
+            console.log('收到进度更新:', data);
+            
+            switch (data.type) {
+                case 'build':
+                    handleBuildProgress(data);
+                    break;
+                case 'deploy':
+                    handleDeployProgress(data);
+                    break;
+                case 'status':
+                    console.log('状态更新:', data.message);
+                    break;
+                default:
+                    console.log('未知消息类型:', data.type);
+            }
+            
+            // 更新状态显示
+            updateDeploymentStatusFromWebSocket(data);
+        }
+        
+        // 处理构建进度
+        function handleBuildProgress(data) {
+            if (data.status === 'building') {
+                showUploadProgress();
+                updateUploadProgress(data.progress, 100, data.current, `正在构建: ${data.message}`);
+                addToLog(`INFO: ${data.message}`, 'info');
+            } else if (data.status === 'success') {
+                updateUploadProgress(100, 100, 100, '构建完成');
+                addToLog('SUCCESS: 构建完成', 'success');
+                setTimeout(() => hideUploadProgress(), 2000);
+            } else if (data.status === 'failed') {
+                addToLog(`ERROR: 构建失败 - ${data.message}`, 'error');
+                hideUploadProgress();
+            }
+        }
+        
+        // 处理部署进度
+        function handleDeployProgress(data) {
+            if (data.status === 'deploying') {
+                showUploadProgress();
+                const progress = data.total > 0 ? Math.round((data.current / data.total) * 100) : 0;
+                updateUploadProgress(progress, data.total, data.current, 
+                    data.current_file ? `正在上传: ${data.current_file}` : data.message);
+                addToLog(`INFO: ${data.message}`, 'info');
+                
+                // 更新速度和ETA
+                if (data.speed) {
+                    document.getElementById('uploadStats').textContent = 
+                        `${data.current} / ${data.total} 文件 (${data.speed})`;
+                }
+            } else if (data.status === 'success') {
+                updateUploadProgress(100, data.total, data.total, '部署完成');
+                addToLog('SUCCESS: 部署完成', 'success');
+                setTimeout(() => hideUploadProgress(), 3000);
+                refreshDeploymentStatus();
+            } else if (data.status === 'failed') {
+                addToLog(`ERROR: 部署失败 - ${data.message}`, 'error');
+                hideUploadProgress();
+            } else if (data.status === 'paused') {
+                addToLog(`WARNING: ${data.message}`, 'warning');
+                document.getElementById('pauseBtn').style.display = 'none';
+                document.getElementById('resumeBtn').style.display = 'inline-block';
+            }
+        }
+        
+        // 从WebSocket数据更新部署状态显示
+        function updateDeploymentStatusFromWebSocket(data) {
+            const statusBadge = document.getElementById('statusBadge');
+            const deploymentInfo = document.getElementById('deploymentInfo');
+            
+            if (statusBadge && data.status) {
+                statusBadge.className = 'badge';
+                switch(data.status) {
+                    case 'building':
+                        statusBadge.classList.add('bg-info');
+                        statusBadge.textContent = '正在构建';
+                        break;
+                    case 'deploying':
+                        statusBadge.classList.add('bg-warning');
+                        statusBadge.textContent = '正在部署';
+                        break;
+                    case 'success':
+                        statusBadge.classList.add('bg-success');
+                        statusBadge.textContent = '部署成功';
+                        break;
+                    case 'failed':
+                        statusBadge.classList.add('bg-danger');
+                        statusBadge.textContent = '部署失败';
+                        break;
+                    case 'paused':
+                        statusBadge.classList.add('bg-secondary');
+                        statusBadge.textContent = '已暂停';
+                        break;
+                }
+            }
+            
+            if (deploymentInfo && data.message) {
+                deploymentInfo.textContent = data.message;
+            }
+        }
+
         // 通知系统
         function showNotification(message, type = 'info', duration = 4000) {
             // 创建通知元素
@@ -700,10 +903,7 @@
             }, duration);
         }
 
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSSHConfig();
-        });
+        // 页面加载时初始化（已移至后面统一处理）
 
         // 切换认证方式
         function toggleAuthMethod() {
@@ -742,12 +942,35 @@
                         }
                         
                         updateSSHStatus();
+                        
+                        // 检查加密状态并显示相应的警告
+                        checkEncryptionStatus(data);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     addToLog('ERROR: 加载SSH配置失败 - ' + error.message, 'error');
                 });
+        }
+
+        // 检查加密状态
+        function checkEncryptionStatus(data) {
+            const decryptionAlert = document.getElementById('decryptionAlert');
+            const plaintextAlert = document.getElementById('plaintextAlert');
+            
+            // 隐藏所有警告
+            decryptionAlert.style.display = 'none';
+            plaintextAlert.style.display = 'none';
+            
+            if (data.has_plaintext_credentials) {
+                // 有明文凭据，显示加密提示
+                plaintextAlert.style.display = 'block';
+                addToLog('WARNING: 检测到明文存储的SSH凭据，建议加密存储', 'warning');
+            } else if (data.needs_decryption) {
+                // 有加密凭据但未解锁，显示解锁提示
+                decryptionAlert.style.display = 'block';
+                addToLog('INFO: 检测到加密的SSH凭据，需要主密码解锁', 'info');
+            }
         }
 
         // 保存SSH配置
@@ -914,48 +1137,51 @@
 
         // 部署到服务器
         function deployToServer() {
-            addToLog('INFO: 开始部署到服务器...', 'info');
-            showUploadProgress();
-            updateUploadProgress(0, 100, '准备部署...');
-            
-            fetch('/api/deploy', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    addToLog('ERROR: 部署失败 - ' + data.error, 'error');
+            checkDeploymentRequirement(function() {
+                addToLog('INFO: 开始部署到服务器...', 'info');
+                showUploadProgress();
+                updateUploadProgress(0, 100, '准备部署...');
+                
+                fetch('/api/deploy', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        addToLog('ERROR: 部署失败 - ' + data.error, 'error');
+                        if (data.output) {
+                            addToLog('部署输出:\n' + data.output, 'info');
+                        }
+                        hideUploadProgress();
+                        return;
+                    }
+                    
+                    addToLog('SUCCESS: 部署成功', 'success');
                     if (data.output) {
                         addToLog('部署输出:\n' + data.output, 'info');
                     }
+                    if (data.stats) {
+                        updateUploadProgress(data.stats.files_deployed, data.stats.files_deployed, '部署完成');
+                        addToLog(`统计: 传输了 ${data.stats.files_deployed} 个文件，共 ${data.stats.bytes_transferred} 字节`, 'success');
+                    }
+                    
+                    setTimeout(() => {
+                        hideUploadProgress();
+                    }, 3000);
+                    refreshDeploymentStatus();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    addToLog('ERROR: 部署失败 - ' + error.message, 'error');
                     hideUploadProgress();
-                    return;
-                }
-                
-                addToLog('SUCCESS: 部署成功', 'success');
-                if (data.output) {
-                    addToLog('部署输出:\n' + data.output, 'info');
-                }
-                if (data.stats) {
-                    updateUploadProgress(data.stats.files_deployed, data.stats.files_deployed, '部署完成');
-                    addToLog(`统计: 传输了 ${data.stats.files_deployed} 个文件，共 ${data.stats.bytes_transferred} 字节`, 'success');
-                }
-                
-                setTimeout(() => {
-                    hideUploadProgress();
-                }, 3000);
-                refreshDeploymentStatus();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                addToLog('ERROR: 部署失败 - ' + error.message, 'error');
-                hideUploadProgress();
+                });
             });
         }
 
         // 一键构建和部署
         function buildAndDeploy() {
-            addToLog('INFO: 开始一键构建和部署...', 'info');
+            checkDeploymentRequirement(function() {
+                addToLog('INFO: 开始一键构建和部署...', 'info');
             showUploadProgress();
             updateUploadProgress(0, 100, '正在构建...');
             
@@ -999,6 +1225,7 @@
                 console.error('Error:', error);
                 addToLog('ERROR: 一键部署失败 - ' + error.message, 'error');
                 hideUploadProgress();
+            });
             });
         }
 
@@ -1109,7 +1336,8 @@
 
         // 增量部署
         function incrementalDeploy() {
-            addToLog('INFO: 开始增量部署...', 'info');
+            checkDeploymentRequirement(function() {
+                addToLog('INFO: 开始增量部署...', 'info');
             showNotification('正在进行增量部署，只传输变化的文件...', 'info');
             showUploadProgress();
             updateUploadProgress(0, 100, '准备增量部署...');
@@ -1150,11 +1378,13 @@
                 addToLog('ERROR: 增量部署失败 - ' + error.message, 'error');
                 hideUploadProgress();
             });
+            });
         }
 
         // 增量构建和部署
         function incrementalBuildAndDeploy() {
-            addToLog('INFO: 开始增量构建和部署...', 'info');
+            checkDeploymentRequirement(function() {
+                addToLog('INFO: 开始增量构建和部署...', 'info');
             showNotification('正在进行增量构建和部署...', 'info');
             showUploadProgress();
             updateUploadProgress(0, 100, '正在构建...');
@@ -1202,6 +1432,7 @@
                 showNotification('增量构建和部署失败: ' + error.message, 'error');
                 addToLog('ERROR: 增量构建和部署失败 - ' + error.message, 'error');
                 hideUploadProgress();
+            });
             });
         }
 
@@ -1414,13 +1645,11 @@
         }
 
         // 更新上传进度
-        function updateUploadProgress(completed, total, currentFile) {
-            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-            
+        function updateUploadProgress(percentage, total, current, currentFile) {
             document.getElementById('uploadPercentage').textContent = percentage + '%';
             document.getElementById('progressBarFill').style.width = percentage + '%';
             document.getElementById('currentFile').textContent = currentFile || '等待开始...';
-            document.getElementById('uploadStats').textContent = `${completed} / ${total} 文件`;
+            document.getElementById('uploadStats').textContent = `${current} / ${total} 文件`;
         }
 
         // 检查是否有未完成任务并显示继续按钮
@@ -1450,13 +1679,321 @@
                 });
         }
 
+        // Hugo serve 相关函数
+        function startHugoServe() {
+            const port = document.getElementById('hugoServePort').textContent || 1313;
+            
+            fetch('/api/hugo-serve/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    port: parseInt(port)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showNotification('启动失败: ' + data.error, 'error');
+                } else {
+                    showNotification(data.message, 'success');
+                    updateHugoServeUI(data.status);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('启动Hugo serve失败', 'error');
+            });
+        }
+
+        function stopHugoServe() {
+            fetch('/api/hugo-serve/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showNotification('停止失败: ' + data.error, 'error');
+                } else {
+                    showNotification(data.message, 'success');
+                    updateHugoServeUI(data.status);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('停止Hugo serve失败', 'error');
+            });
+        }
+
+        function restartHugoServe() {
+            fetch('/api/hugo-serve/restart', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showNotification('重启失败: ' + data.error, 'error');
+                } else {
+                    showNotification(data.message, 'success');
+                    updateHugoServeUI(data.status);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('重启Hugo serve失败', 'error');
+            });
+        }
+
+        function refreshHugoServeStatus() {
+            fetch('/api/hugo-serve/status')
+            .then(response => response.json())
+            .then(data => {
+                updateHugoServeUI(data.status);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function updateHugoServeUI(status) {
+            const indicator = document.getElementById('hugoServeIndicator');
+            const statusText = document.getElementById('hugoServeStatus');
+            const portText = document.getElementById('hugoServePort');
+            const urlText = document.getElementById('hugoServeUrl');
+            const startBtn = document.getElementById('startServeBtn');
+            const restartBtn = document.getElementById('restartServeBtn');
+            const stopBtn = document.getElementById('stopServeBtn');
+            const openBtn = document.getElementById('openPreviewBtn');
+
+            if (status.running) {
+                indicator.className = 'status-indicator status-success';
+                statusText.textContent = '运行中';
+                portText.textContent = status.port;
+                urlText.innerHTML = `<a href="${status.url}" target="_blank" class="text-decoration-none">${status.url}</a>`;
+                
+                startBtn.disabled = true;
+                restartBtn.disabled = false;
+                stopBtn.disabled = false;
+                openBtn.disabled = false;
+            } else {
+                indicator.className = 'status-indicator status-error';
+                statusText.textContent = '未运行';
+                portText.textContent = status.port || 1313;
+                urlText.textContent = '-';
+                
+                startBtn.disabled = false;
+                restartBtn.disabled = true;
+                stopBtn.disabled = true;
+                openBtn.disabled = true;
+            }
+        }
+
+        function openPreview() {
+            const status = document.getElementById('hugoServeUrl').textContent;
+            if (status && status !== '-') {
+                const url = status.includes('http') ? status : `http://localhost:${document.getElementById('hugoServePort').textContent}`;
+                window.open(url, '_blank');
+            }
+        }
+
+        // 密码可见性切换函数
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('sshPassword');
+            const toggleIcon = document.getElementById('passwordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+
+        function toggleMasterPasswordVisibility() {
+            const passwordInput = document.getElementById('masterPassword');
+            const toggleIcon = document.getElementById('masterPasswordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+
+        function toggleModalPasswordVisibility() {
+            const passwordInput = document.getElementById('modalMasterPassword');
+            const toggleIcon = document.getElementById('modalPasswordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+
+        function toggleEncryptPasswordVisibility() {
+            const passwordInput = document.getElementById('encryptMasterPassword');
+            const toggleIcon = document.getElementById('encryptPasswordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+
+        function toggleConfirmPasswordVisibility() {
+            const passwordInput = document.getElementById('confirmMasterPassword');
+            const toggleIcon = document.getElementById('confirmPasswordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+
+        // 模态框相关函数
+        function showDecryptionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('decryptionModal'));
+            modal.show();
+        }
+
+        function showEncryptCredentialsModal() {
+            const modal = new bootstrap.Modal(document.getElementById('encryptCredentialsModal'));
+            modal.show();
+        }
+
+        // 解锁凭据
+        function unlockWithMasterPassword() {
+            const masterPassword = document.getElementById('modalMasterPassword').value;
+            const resultDiv = document.getElementById('decryptionResult');
+            
+            if (!masterPassword) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">请输入主密码</div>';
+                return;
+            }
+            
+            fetch('/api/set-decryption-key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    master_password: masterPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    showNotification('SSH密码解锁成功！', 'success');
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('decryptionModal')).hide();
+                        loadSSHConfig(); // 重新加载配置以更新UI
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="alert alert-danger">解锁失败，请检查网络连接</div>';
+            });
+        }
+
+        // 加密凭据
+        function encryptCredentials() {
+            const masterPassword = document.getElementById('encryptMasterPassword').value;
+            const confirmPassword = document.getElementById('confirmMasterPassword').value;
+            const resultDiv = document.getElementById('encryptionResult');
+            
+            if (!masterPassword || !confirmPassword) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">请填写完整的主密码信息</div>';
+                return;
+            }
+            
+            if (masterPassword !== confirmPassword) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">两次输入的主密码不一致</div>';
+                return;
+            }
+            
+            if (masterPassword.length < 8) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">建议使用至少8位字符的强密码</div>';
+                return;
+            }
+            
+            fetch('/api/encrypt-credentials', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    master_password: masterPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    showNotification('SSH凭据加密成功！', 'success');
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('encryptCredentialsModal')).hide();
+                        loadSSHConfig(); // 重新加载配置以更新UI
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="alert alert-danger">加密失败，请检查网络连接</div>';
+            });
+        }
+
+        // 检查是否需要主密码进行部署
+        function checkDeploymentRequirement(callback) {
+            fetch('/api/ssh-config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.needs_decryption) {
+                        // 需要解密，显示解密模态框
+                        showDecryptionModal();
+                        return false;
+                    } else {
+                        // 不需要解密，可以继续部署
+                        if (callback) callback();
+                        return true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking deployment requirement:', error);
+                    if (callback) callback(); // 出错时允许继续
+                });
+        }
+
+
         // 启动时加载状态
         document.addEventListener('DOMContentLoaded', function() {
+            loadSSHConfig(); // 加载SSH配置
             loadLogsFromStorage(); // 加载保存的日志
             refreshDeploymentStatus();
             checkPendingTasks(); // 检查未完成任务
+            connectWebSocket(); // 建立WebSocket连接
+            refreshHugoServeStatus(); // 加载Hugo serve状态
             // 每30秒自动刷新状态
             setInterval(refreshDeploymentStatus, 30000);
+            setInterval(refreshHugoServeStatus, 30000);
         });
 
         // 监听表单变化更新状态
@@ -1464,6 +2001,7 @@
             document.getElementById(id).addEventListener('input', updateSSHStatus);
         });
     </script>
+    <script src="/static/js/i18n.js"></script>
 </body>
 </html>
 {{ end }}

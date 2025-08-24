@@ -38,8 +38,18 @@ A powerful web-based management system for Hugo static sites, built with Go and 
 
 ### ⚙️ System Features
 - **Responsive UI**: Beautiful Bootstrap 5 interface that works on all devices
-- **Multi-language Support**: Chinese and English interface
+- **Intelligent Multi-language Support**: Advanced internationalization with smart language detection
+  - **Browser Language Detection**: Automatically detects and sets interface language based on browser preferences
+  - **User Preference Priority**: User-selected languages take precedence over browser detection
+  - **Persistent Settings**: Language preferences are saved to server configuration
+  - **Supported Languages**: 5 languages with full translation support
+    - 🇨🇳 简体中文 (Simplified Chinese)
+    - 🇹🇼 繁體中文 (Traditional Chinese) 
+    - 🇯🇵 日本語 (Japanese)
+    - 🇺🇸 English (Default)
+    - 🇷🇺 Русский (Russian)
 - **Hugo Configuration Management**: Built-in TOML configuration editor
+- **Hugo Serve Integration**: Built-in preview server with start/stop controls
 - **Smart Notifications**: User-friendly notification system
 - **File Encoding Repair**: Fix file encoding issues automatically
 - **Real-time Updates**: Live statistics and file monitoring with auto-refresh
@@ -181,6 +191,17 @@ The application uses a `config.json` file for configuration:
 - `POST /api/build-and-deploy` - Build and full deploy
 - `POST /api/incremental-build-and-deploy` - Build and incremental deploy
 
+### Hugo Serve
+- `POST /api/hugo-serve/start` - Start Hugo preview server
+- `POST /api/hugo-serve/stop` - Stop Hugo preview server
+- `POST /api/hugo-serve/restart` - Restart Hugo preview server
+- `GET /api/hugo-serve/status` - Get Hugo serve status
+
+### Internationalization
+- `GET /api/languages` - Get supported languages and current language
+- `POST /api/set-language` - Set current interface language
+- `GET /api/translations` - Get all translations for current language
+
 ### Hugo Configuration
 - `GET /api/hugo-config` - Get Hugo configuration
 - `POST /api/hugo-config` - Update Hugo configuration
@@ -252,7 +273,15 @@ If you encounter any issues or have questions:
 
 ## Changelog
 
-### v2.0.0 (Latest - 2025-01-24)
+### v2.1.0 (Latest - 2025-01-25)
+- 🌍 **Multi-language Support**: Full internationalization for 6 languages (Chinese Simplified/Traditional, Japanese, English, Russian, Korean)
+- 🔧 **Hugo Serve Integration**: Built-in preview server management with start/stop/restart controls
+- 📱 **Language Switching**: Dynamic language switching without page reload
+- 🎯 **Real-time Progress**: WebSocket-based real-time deployment progress with Windows-style progress bars
+- 🛠️ **Enhanced Error Handling**: Detailed SSH error analysis with specific diagnostic messages
+- 📊 **Path Compatibility**: Fixed Unix/Windows path separator issues for cross-platform deployment
+
+### v2.0.0 (2025-01-24)
 - 🚀 **Native SSH Implementation**: Pure Go SSH support (no external dependencies)
 - 🔐 **Enhanced Security**: AES-GCM password encryption with master password
 - 📊 **Smart Deployment**: Incremental sync with real-time progress tracking

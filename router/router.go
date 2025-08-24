@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"hugo-manager-go/controller"
+	"hugo-manager-go/utils"
 	"net"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -16,6 +18,12 @@ func Start() {
 	// 移除固定的静态文件路由，使用动态路由
 	// r.Static("/static", "./static")
 	r.LoadHTMLGlob("view/**/*.html")
+
+	// 启动WebSocket管理器
+	utils.Manager.Start()
+
+	// 初始化多语言支持
+	r.Use(controller.InitializeI18n())
 
 	// 动态静态文件服务路由
 	r.GET("/static/*filepath", controller.ServeStaticFile)
@@ -40,6 +48,8 @@ func Start() {
 	r.POST("/api/ssh-config-encrypted", controller.UpdateSSHConfigWithEncryption)
 	r.POST("/api/set-decryption-key", controller.SetDecryptionKey)
 	r.GET("/api/check-decryption-status", controller.CheckDecryptionStatus)
+	r.POST("/api/encrypt-credentials", controller.EncryptPlaintextCredentials)
+	r.POST("/api/update-master-password", controller.UpdateMasterPassword)
 	r.POST("/api/test-ssh", controller.TestSSHConnection)
 	r.POST("/api/build-hugo", controller.BuildHugo)
 	r.POST("/api/deploy", controller.DeployToServer)
@@ -49,6 +59,15 @@ func Start() {
 	r.POST("/api/pause-deployment", controller.PauseDeployment)
 	r.POST("/api/resume-deployment", controller.ResumeDeployment)
 	r.GET("/api/deployment-status", controller.GetDeploymentStatus)
+	
+	// Hugo serve相关路由
+	r.POST("/api/hugo-serve/start", controller.StartHugoServe)
+	r.POST("/api/hugo-serve/stop", controller.StopHugoServe)
+	r.POST("/api/hugo-serve/restart", controller.RestartHugoServe)
+	r.GET("/api/hugo-serve/status", controller.GetHugoServeStatus)
+	
+	// WebSocket进度监控路由
+	r.GET("/ws/progress", gin.WrapH(http.HandlerFunc(utils.HandleWebSocketConnection)))
 
 	// 图片管理相关路由
 	r.GET("/images", controller.ImageManager)
@@ -79,6 +98,12 @@ func Start() {
 	r.POST("/api/create-article", controller.CreateNewArticle)
 	r.POST("/api/repair-filenames", controller.RepairFilenames)
 	r.GET("/api/debug-path", controller.DebugPath)
+
+	// 多语言相关路由
+	r.GET("/api/languages", controller.GetLanguages)
+	r.POST("/api/set-language", controller.SetLanguage)
+	r.POST("/api/detect-browser-language", controller.DetectBrowserLanguage)
+	r.GET("/api/translations", controller.GetTranslations)
 
 	// 自动选择可用端口
 	port := findAvailablePort(80)

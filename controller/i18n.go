@@ -1,0 +1,234 @@
+package controller
+
+import (
+	"github.com/gin-gonic/gin"
+	"hugo-manager-go/utils"
+	"hugo-manager-go/config"
+)
+
+// GetLanguages returns all supported languages
+func GetLanguages(c *gin.Context) {
+	i18nManager := utils.GetI18nManager()
+	languages := i18nManager.SupportedLanguages()
+	
+	c.JSON(200, gin.H{
+		"languages":          languages,
+		"current":            i18nManager.GetCurrentLanguage(),
+		"user_set_language":  config.IsUserSetLanguage(),
+	})
+}
+
+// SetLanguage sets the current language
+func SetLanguage(c *gin.Context) {
+	var request struct {
+		Language string `json:"language"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	i18nManager := utils.GetI18nManager()
+	if err := i18nManager.SetLanguage(request.Language); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	
+	c.JSON(200, gin.H{
+		"message":  "Language changed successfully",
+		"language": request.Language,
+	})
+}
+
+// GetTranslations returns translations for the current language
+func GetTranslations(c *gin.Context) {
+	i18nManager := utils.GetI18nManager()
+	currentLang := i18nManager.GetCurrentLanguage()
+	
+	// Get all translation keys
+	translations := make(map[string]string)
+	
+	// Common keys that should be available
+	keys := []string{
+		// Navigation
+		"nav.home", "nav.files", "nav.images", "nav.deploy", "nav.trash", "nav.settings", "nav.back",
+		
+		// Common
+		"common.save", "common.cancel", "common.delete", "common.edit", "common.create",
+		"common.loading", "common.success", "common.error", "common.warning", "common.info",
+		"common.confirm", "common.close", "common.refresh", "common.search", "common.filter",
+		"common.all", "common.status", "common.port", "common.url", "common.start",
+		"common.stop", "common.restart", "common.preview", "common.open",
+		
+		// Home
+		"home.title", "home.subtitle", "home.articles", "home.images", "home.deploy",
+		
+		// Deploy
+		"deploy.title", "deploy.config", "deploy.host", "deploy.username", "deploy.password",
+		"deploy.keypath", "deploy.remotepath", "deploy.auth.method", "deploy.auth.password",
+		"deploy.auth.key", "deploy.test", "deploy.build", "deploy.deploy", "deploy.build.desc",
+		"deploy.deploy.desc", "deploy.incremental", "deploy.quick", "deploy.status",
+		"deploy.last.sync", "deploy.files", "deploy.bytes",
+		
+		// Hugo Serve
+		"serve.title", "serve.status", "serve.running", "serve.stopped", "serve.port",
+		"serve.url", "serve.start", "serve.stop", "serve.restart", "serve.open",
+		
+		// Files
+		"files.title", "files.editor", "files.create", "files.upload", "files.markdown",
+		"files.metadata", "files.title.label", "files.author", "files.type", "files.date",
+		"files.categories", "files.tags", "files.content", "files.preview", "files.split",
+		
+		// Messages
+		"msg.save.success", "msg.deploy.success", "msg.build.success", "msg.serve.started",
+		"msg.serve.stopped", "msg.connection.test", "msg.loading.config",
+	}
+	
+	for _, key := range keys {
+		translations[key] = i18nManager.T(key)
+	}
+	
+	c.JSON(200, gin.H{
+		"language":     currentLang,
+		"translations": translations,
+	})
+}
+
+// DetectBrowserLanguage detects and sets browser language if user hasn't set one
+func DetectBrowserLanguage(c *gin.Context) {
+	var request struct {
+		BrowserLanguage string `json:"browser_language"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	// 检查是否用户已经主动设置了语言
+	if config.IsUserSetLanguage() {
+		c.JSON(200, gin.H{
+			"message": "User has set language, browser detection ignored",
+			"language": config.GetLanguage(),
+			"user_set": true,
+		})
+		return
+	}
+	
+	// 映射浏览器语言到支持的语言代码
+	browserLang := request.BrowserLanguage
+	mappedLang := mapBrowserLanguage(browserLang)
+	
+	if mappedLang != "" {
+		i18nManager := utils.GetI18nManager()
+		config.SetBrowserLanguage(mappedLang)
+		i18nManager.SetLanguageInternal(mappedLang) // 内部设置，不标记为用户设置
+		
+		c.JSON(200, gin.H{
+			"message": "Browser language detected and set",
+			"language": mappedLang,
+			"user_set": false,
+			"browser_detected": true,
+		})
+	} else {
+		c.JSON(200, gin.H{
+			"message": "Browser language not supported, using default",
+			"language": config.GetLanguage(),
+			"user_set": false,
+		})
+	}
+}
+
+// mapBrowserLanguage maps browser language codes to supported language codes
+func mapBrowserLanguage(browserLang string) string {
+	// 处理常见的浏览器语言代码
+	switch {
+	case browserLang == "zh-CN" || browserLang == "zh" || browserLang == "zh-Hans":
+		return "zh-CN"
+	case browserLang == "zh-TW" || browserLang == "zh-Hant":
+		return "zh-TW"
+	case browserLang == "ja" || browserLang == "ja-JP":
+		return "ja-JP"
+	case browserLang == "en" || browserLang == "en-US" || browserLang == "en-GB":
+		return "en-US"
+	case browserLang == "ru" || browserLang == "ru-RU":
+		return "ru-RU"
+	case browserLang == "ko" || browserLang == "ko-KR":
+		return "ko-KR"
+	default:
+		// 尝试匹配语言前缀
+		if len(browserLang) >= 2 {
+			prefix := browserLang[:2]
+			switch prefix {
+			case "zh":
+				return "zh-CN" // 默认简体中文
+			case "ja":
+				return "ja-JP"
+			case "en":
+				return "en-US"
+			case "ru":
+				return "ru-RU"
+			case "ko":
+				return "ko-KR"
+			}
+		}
+		return "" // 不支持的语言
+	}
+}
+
+// InitializeI18n initializes the i18n system and middleware
+func InitializeI18n() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		i18nManager := utils.GetI18nManager()
+		
+		// Load translations on first request
+		i18nManager.LoadTranslations()
+		
+		// Check for language preference in headers
+		acceptLang := c.GetHeader("Accept-Language")
+		if acceptLang != "" {
+			// Simple language detection - get first language code
+			if len(acceptLang) >= 2 {
+				langCode := acceptLang[:2]
+				switch langCode {
+				case "zh":
+					i18nManager.SetLanguage("zh-CN")
+				case "ja":
+					i18nManager.SetLanguage("ja-JP")
+				case "en":
+					i18nManager.SetLanguage("en-US")
+				case "ru":
+					i18nManager.SetLanguage("ru-RU")
+				case "ko":
+					i18nManager.SetLanguage("ko-KR")
+				}
+			}
+		}
+		
+		// Add translation function to context
+		c.Set("T", i18nManager.T)
+		c.Set("i18n", i18nManager)
+		c.Next()
+	}
+}
+
+// Helper function to get translated page data
+func GetPageData(c *gin.Context, pageKey string) gin.H {
+	i18nManager := utils.GetI18nManager()
+	
+	data := gin.H{
+		"Language":     i18nManager.GetCurrentLanguage(),
+		"Languages":    i18nManager.SupportedLanguages(),
+		"T": func(key string) string {
+			return i18nManager.T(key)
+		},
+	}
+	
+	// Add page-specific title
+	if pageKey != "" {
+		data["Title"] = i18nManager.T(pageKey)
+	}
+	
+	return data
+}

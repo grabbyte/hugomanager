@@ -18,8 +18,16 @@ func ServeStaticFile(c *gin.Context) {
 		return
 	}
 
-	// 获取Hugo项目的static目录
-	staticDir := config.GetStaticDir()
+	var staticDir string
+	
+	// 判断是应用程序静态文件还是Hugo项目静态文件
+	if strings.HasPrefix(requestPath, "/js/") || strings.HasPrefix(requestPath, "/css/") {
+		// 应用程序自己的静态文件 (js, css等)
+		staticDir = "./static"
+	} else {
+		// Hugo项目的静态文件 (用户上传的图片等)
+		staticDir = config.GetStaticDir()
+	}
 	
 	// 构建完整的文件路径
 	fullPath := filepath.Join(staticDir, requestPath)

@@ -1,6 +1,61 @@
 
 {{ define "header" }}
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <a class="navbar-brand" href="/">Hugo 管理器</a>
+<nav class="navbar navbar-expand-lg bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-house-door"></i> Hugo 管理器
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "home"}} active{{end}}" href="/">
+                        <i class="bi bi-house"></i> <span data-i18n="nav_home">首页</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "files"}} active{{end}}" href="/files">
+                        <i class="bi bi-folder"></i> <span data-i18n="nav_files">文件管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "images"}} active{{end}}" href="/images">
+                        <i class="bi bi-folder2-open"></i> <span data-i18n="nav_static">静态文件</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "deploy"}} active{{end}}" href="/deploy">
+                        <i class="bi bi-cloud-upload"></i> <span data-i18n="nav_deploy">部署管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "trash"}} active{{end}}" href="/trash">
+                        <i class="bi bi-trash"></i> <span data-i18n="nav_trash">回收站</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "settings"}} active{{end}}" href="/settings">
+                        <i class="bi bi-gear"></i> <span data-i18n="nav_settings">设置</span>
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item dropdown me-3">
+                    <a class="nav-link dropdown-toggle btn btn-outline-primary btn-sm" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <i class="bi bi-globe"></i> <span id="currentLanguageName">English</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="languageDropdown" id="languageMenu" style="border-radius: 10px; min-width: 180px;">
+                        <li><a class="dropdown-item py-2" href="#" onclick="changeLanguage('zh-CN')">🇨🇳 简体中文</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="changeLanguage('zh-TW')">🇹🇼 繁體中文</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="changeLanguage('ja-JP')">🇯🇵 日本語</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="changeLanguage('en-US')">🇺🇸 English</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="changeLanguage('ru-RU')">🇷🇺 Русский</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
 </nav>
 {{ end }}
