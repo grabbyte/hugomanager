@@ -1,0 +1,496 @@
+{{ define "files/manager.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+        }
+        .main-content {
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+        .tree-node {
+            cursor: pointer;
+            padding: 2px 0;
+            user-select: none;
+        }
+        .tree-node:hover {
+            background-color: #f8f9fa;
+        }
+        .tree-node.active {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        .tree-indent {
+            margin-left: 20px;
+        }
+        .file-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .file-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+        .file-item:hover {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+        }
+        .file-item.selected {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-house-door"></i> Hugo 管理器
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> 首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/files">
+                            <i class="bi bi-folder"></i> 文件管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/images">
+                            <i class="bi bi-folder2-open"></i> 静态文件
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/deploy">
+                            <i class="bi bi-cloud-upload"></i> 部署管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/trash">
+                            <i class="bi bi-trash"></i> 回收站
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings">
+                            <i class="bi bi-gear"></i> 设置
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- 左侧目录树 -->
+            <div class="col-md-3 sidebar p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">目录结构</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshTree()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="alert alert-info small">
+                    <strong>项目：</strong> {{ .HugoProjectPath }}
+                </div>
+                <div id="directoryTree">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <div>加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧主内容区 -->
+            <div class="col-md-9 main-content">
+                <div class="p-3">
+                    <!-- 文件列表区域 -->
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="bi bi-folder"></i>
+                                <span id="currentPath">请选择目录</span>
+                            </h6>
+                            <div>
+                                <button class="btn btn-sm btn-primary me-2" onclick="showNewArticleModal()">
+                                    <i class="bi bi-file-earmark-plus"></i> 新建文章
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="refreshFiles()">
+                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body file-list" id="fileList">
+                            <div class="text-center text-muted">请在左侧选择一个目录</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建文章模态框 -->
+    <div class="modal fade" id="newArticleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新建文章</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newArticleForm">
+                        <div class="mb-3">
+                            <label class="form-label">文章标题 *</label>
+                            <input type="text" class="form-control" id="newTitle" required placeholder="例如：C语言简单介绍">
+                            <div class="form-text">将自动生成文件名，如：2022-01-19-c语言简单介绍.md</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">保存目录</label>
+                            <select class="form-select" id="newDirectory">
+                                <option value="posts">posts (默认)</option>
+                            </select>
+                            <div class="form-text">选择文章保存的目录</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">作者</label>
+                            <input type="text" class="form-control" id="newAuthor" placeholder="作者姓名">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">文章类型</label>
+                            <select class="form-select" id="newType">
+                                <option value="post">post (博客文章)</option>
+                                <option value="page">page (静态页面)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">分类 (可选)</label>
+                            <input type="text" class="form-control" id="newCategories" placeholder="用逗号分隔，如：技术,编程">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">标签 (可选)</label>
+                            <input type="text" class="form-control" id="newTags" placeholder="用逗号分隔，如：C语言,教程,入门">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createNewArticle()">创建文章</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <script>
+        let currentSelectedPath = '';
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDirectoryTree();
+        });
+
+        // 加载目录树
+        function loadDirectoryTree() {
+            fetch('/api/directory-tree')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('directoryTree').innerHTML = 
+                            '<div class="alert alert-danger">' + data.error + '</div>';
+                        return;
+                    }
+                    renderTree(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('directoryTree').innerHTML = 
+                        '<div class="alert alert-danger">加载目录树失败</div>';
+                });
+        }
+
+        // 渲染目录树
+        function renderTree(node, container = null, level = 0) {
+            if (!container) {
+                container = document.getElementById('directoryTree');
+                container.innerHTML = '';
+            }
+
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = 'tree-node';
+            nodeDiv.style.paddingLeft = (level * 20) + 'px';
+            
+            const icon = node.children && node.children.length > 0 ? 
+                '<i class="bi bi-folder"></i>' : '<i class="bi bi-folder2"></i>';
+            
+            nodeDiv.innerHTML = icon + ' ' + node.name;
+            nodeDiv.onclick = () => selectDirectory(node.path, nodeDiv);
+            
+            container.appendChild(nodeDiv);
+
+            if (node.children) {
+                node.children.forEach(child => {
+                    renderTree(child, container, level + 1);
+                });
+            }
+        }
+
+        // 选择目录
+        function selectDirectory(path, element) {
+            // 移除之前的选中状态
+            document.querySelectorAll('.tree-node').forEach(node => {
+                node.classList.remove('active');
+            });
+            
+            // 添加当前选中状态
+            element.classList.add('active');
+            currentSelectedPath = path;
+            
+            // 更新当前路径显示
+            document.getElementById('currentPath').textContent = path || 'content/';
+            
+            // 加载文件列表
+            loadFiles(path);
+        }
+
+        // 加载文件列表
+        function loadFiles(path) {
+            const url = '/api/files?path=' + encodeURIComponent(path || '');
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('fileList').innerHTML = 
+                            '<div class="alert alert-danger">' + data.error + '</div>';
+                        return;
+                    }
+                    renderFileList(data.files);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('fileList').innerHTML = 
+                        '<div class="alert alert-danger">加载文件列表失败</div>';
+                });
+        }
+
+        // 渲染文件列表
+        function renderFileList(files) {
+            const fileList = document.getElementById('fileList');
+            
+            if (files.length === 0) {
+                fileList.innerHTML = '<div class="text-center text-muted">此目录为空</div>';
+                return;
+            }
+
+            let html = '';
+            files.forEach(file => {
+                const icon = file.is_dir ? 
+                    '<i class="bi bi-folder text-warning"></i>' : 
+                    (file.is_markdown ? '<i class="bi bi-file-earmark-text text-primary"></i>' : '<i class="bi bi-file-earmark"></i>');
+                
+                const size = file.is_dir ? '' : formatFileSize(file.size);
+                const date = new Date(file.mod_time).toLocaleDateString();
+                
+                html += `
+                    <div class="file-item" onclick="selectFile('${file.path}', '${file.name}', ${file.is_dir}, this)">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                ${icon}
+                                <span class="ms-2">${file.name}</span>
+                            </div>
+                            <div class="text-muted small">
+                                ${size} ${date}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            fileList.innerHTML = html;
+        }
+
+        // 选择文件
+        function selectFile(path, name, isDir, element) {
+            if (isDir) {
+                // 如果是目录，在树中选中并加载文件列表
+                return;
+            }
+
+            // 跳转到独立的编辑页面
+            const editorUrl = '/files/edit?file=' + encodeURIComponent(path);
+            window.open(editorUrl, '_blank');
+        }
+
+
+        // 刷新目录树
+        function refreshTree() {
+            loadDirectoryTree();
+        }
+
+        // 刷新文件列表
+        function refreshFiles() {
+            if (currentSelectedPath !== null) {
+                loadFiles(currentSelectedPath);
+            }
+        }
+
+
+        // 显示新建文章模态框
+        function showNewArticleModal() {
+            // 更新目录选择列表
+            updateDirectoryOptions();
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('newArticleModal'));
+            modal.show();
+        }
+
+        // 更新目录选项
+        function updateDirectoryOptions() {
+            const select = document.getElementById('newDirectory');
+            
+            // 从目录树中获取所有目录
+            fetch('/api/directory-tree')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) return;
+                    
+                    // 清空现有选项
+                    select.innerHTML = '<option value="posts">posts (默认)</option>';
+                    
+                    // 递归添加目录选项
+                    addDirectoryOptions(select, data, '');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        // 递归添加目录选项
+        function addDirectoryOptions(select, node, parentPath) {
+            if (node.children) {
+                for (const child of node.children) {
+                    const childPath = parentPath ? `${parentPath}/${child.name}` : child.name;
+                    
+                    // 添加选项
+                    if (childPath !== 'posts') {  // posts已经是默认选项
+                        const option = document.createElement('option');
+                        option.value = childPath;
+                        option.textContent = childPath;
+                        select.appendChild(option);
+                    }
+                    
+                    // 递归处理子目录
+                    if (child.children && child.children.length > 0) {
+                        addDirectoryOptions(select, child, childPath);
+                    }
+                }
+            }
+        }
+
+        // 创建新文章
+        function createNewArticle() {
+            const title = document.getElementById('newTitle').value;
+            const directory = document.getElementById('newDirectory').value;
+            const author = document.getElementById('newAuthor').value;
+            const type = document.getElementById('newType').value;
+            
+            const categoriesStr = document.getElementById('newCategories').value;
+            const tagsStr = document.getElementById('newTags').value;
+            
+            // 解析分类和标签
+            const categories = categoriesStr ? categoriesStr.split(',').map(s => s.trim()).filter(s => s) : [];
+            const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+
+            if (!title) {
+                alert('请输入文章标题');
+                return;
+            }
+
+            const requestData = {
+                title: title,
+                directory: directory,
+                author: author,
+                type: type,
+                categories: categories,
+                tags: tags
+            };
+
+            fetch('/api/create-article', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('创建失败: ' + data.error);
+                    return;
+                }
+
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newArticleModal'));
+                modal.hide();
+                
+                // 清空表单
+                document.getElementById('newArticleForm').reset();
+                
+                // 显示成功消息
+                alert('文章创建成功！文件名：' + data.filename);
+                
+                // 刷新文件列表
+                if (currentSelectedPath !== null) {
+                    loadFiles(currentSelectedPath);
+                }
+                
+                // 刷新目录树
+                loadDirectoryTree();
+                
+                // 自动打开新创建的文章
+                setTimeout(() => {
+                    const editorUrl = '/files/edit?file=' + encodeURIComponent(data.path);
+                    window.open(editorUrl, '_blank');
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('创建失败');
+            });
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
+{{ end }}

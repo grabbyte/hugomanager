@@ -1,0 +1,842 @@
+{{ define "files/editor.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>编辑文件 - {{ .Title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        .editor-container {
+            height: 600px;
+            position: relative;
+        }
+        #editor, #markdownContent {
+            height: 100%;
+            width: 100%;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            padding: 10px;
+            resize: none;
+        }
+        
+        /* Markdown预览样式 */
+        .markdown-preview {
+            height: 100%;
+            width: 100%;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            padding: 15px;
+            background: white;
+            overflow-y: auto;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+        }
+        
+        .markdown-preview h1, .markdown-preview h2, .markdown-preview h3, 
+        .markdown-preview h4, .markdown-preview h5, .markdown-preview h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+        
+        .markdown-preview h1 { font-size: 2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .markdown-preview h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .markdown-preview h3 { font-size: 1.25em; }
+        .markdown-preview h4 { font-size: 1em; }
+        .markdown-preview h5 { font-size: 0.875em; }
+        .markdown-preview h6 { font-size: 0.85em; color: #6a737d; }
+        
+        .markdown-preview p {
+            margin-bottom: 1em;
+        }
+        
+        .markdown-preview blockquote {
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 4px solid #dfe2e5;
+            margin: 0 0 1em 0;
+        }
+        
+        .markdown-preview code {
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: rgba(27,31,35,0.05);
+            border-radius: 3px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+        
+        .markdown-preview pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            margin-bottom: 1em;
+        }
+        
+        .markdown-preview pre code {
+            padding: 0;
+            background: transparent;
+        }
+        
+        .markdown-preview table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+        
+        .markdown-preview table th, .markdown-preview table td {
+            padding: 6px 13px;
+            border: 1px solid #dfe2e5;
+        }
+        
+        .markdown-preview table th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+        }
+        
+        .markdown-preview ul, .markdown-preview ol {
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+        
+        .markdown-preview img {
+            max-width: 100%;
+            height: auto;
+            margin: 1em 0;
+        }
+        
+        .markdown-preview hr {
+            height: 0.25em;
+            padding: 0;
+            margin: 24px 0;
+            background-color: #e1e4e8;
+            border: 0;
+        }
+        
+        .editor-tabs {
+            display: flex;
+            gap: 1px;
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-bottom: none;
+            border-radius: 0.375rem 0.375rem 0 0;
+            overflow: hidden;
+        }
+        
+        .editor-tab {
+            flex: 1;
+            padding: 8px 16px;
+            background: #e9ecef;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        
+        .editor-tab.active {
+            background: white;
+            font-weight: 500;
+        }
+        
+        .editor-tab:hover:not(.active) {
+            background: #dee2e6;
+        }
+        
+        .editor-content-area {
+            border: 1px solid #ced4da;
+            border-radius: 0 0 0.375rem 0.375rem;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Hugo 管理器</a>
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">首页</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/files">文件管理</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/images">静态文件</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/deploy">部署管理</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/trash">回收站</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/settings">设置</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <button class="btn btn-outline-secondary me-2" onclick="goBack()">
+                        <i class="bi bi-arrow-left"></i> 返回列表
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-3">
+        <!-- 普通文件编辑器 -->
+        <div class="card" id="textEditor" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span id="textFileName">文件编辑</span>
+                </h5>
+                <div>
+                    <button class="btn btn-success" onclick="saveTextFile()" id="textSaveBtn">
+                        <i class="bi bi-save"></i> 保存
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="editor-container">
+                    <textarea id="editor" placeholder="加载中..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Markdown编辑器 -->
+        <div class="card" id="markdownEditor" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text text-primary"></i>
+                    <span id="markdownFileName">Markdown编辑器</span>
+                </h5>
+                <div>
+                    <button class="btn btn-success" onclick="saveMarkdownFile()" id="markdownSaveBtn">
+                        <i class="bi bi-save"></i> 保存
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Front Matter编辑区 -->
+                    <div class="col-md-4">
+                        <h6>文章信息</h6>
+                        <form id="frontMatterForm">
+                            <div class="mb-3">
+                                <label class="form-label">标题 *</label>
+                                <input type="text" class="form-control" id="frontTitle" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">作者</label>
+                                <input type="text" class="form-control" id="frontAuthor">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">类型</label>
+                                <select class="form-select" id="frontType">
+                                    <option value="post">post</option>
+                                    <option value="page">page</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">URL</label>
+                                <input type="text" class="form-control" id="frontUrl" placeholder="/p/2022/08/182.html">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">发布时间</label>
+                                <input type="datetime-local" class="form-control" id="frontDate">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">分类（每行一个）</label>
+                                <textarea class="form-control" id="frontCategories" rows="3" placeholder="51单片机&#10;技术文章"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">标签（每行一个）</label>
+                                <textarea class="form-control" id="frontTags" rows="3" placeholder="51&#10;单片机&#10;stc"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- 内容编辑区 -->
+                    <div class="col-md-8">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6>内容编辑</h6>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="insertImage()">
+                                    <i class="bi bi-image"></i> 插入图片
+                                </button>
+                                <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                            </div>
+                        </div>
+                        
+                        <!-- 编辑器标签页 -->
+                        <div class="editor-tabs">
+                            <button class="editor-tab active" id="editTab" onclick="switchTab('edit')">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            <button class="editor-tab" id="previewTab" onclick="switchTab('preview')">
+                                <i class="bi bi-eye"></i> 预览
+                            </button>
+                            <button class="editor-tab" id="splitTab" onclick="switchTab('split')">
+                                <i class="bi bi-layout-split"></i> 分屏
+                            </button>
+                        </div>
+                        
+                        <!-- 编辑器内容区 -->
+                        <div class="editor-content-area">
+                            <!-- 编辑模式 -->
+                            <div id="editMode" class="h-100">
+                                <textarea id="markdownContent" 
+                                          placeholder="在这里编写Markdown内容...支持拖拽图片和Ctrl+V粘贴图片" 
+                                          ondrop="handleDrop(event)" 
+                                          ondragover="handleDragOver(event)"
+                                          onpaste="handlePaste(event)"
+                                          oninput="onMarkdownChange()"
+                                          style="border: none; border-radius: 0;"></textarea>
+                            </div>
+                            
+                            <!-- 预览模式 -->
+                            <div id="previewMode" class="h-100" style="display: none;">
+                                <div id="markdownPreview" class="markdown-preview">
+                                    <div class="text-muted text-center">
+                                        <i class="bi bi-eye-slash"></i><br>
+                                        输入Markdown内容以查看预览
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 分屏模式 -->
+                            <div id="splitMode" class="h-100" style="display: none;">
+                                <div class="d-flex h-100">
+                                    <div class="flex-fill" style="border-right: 1px solid #ced4da;">
+                                        <textarea id="markdownContentSplit" 
+                                                  placeholder="在这里编写Markdown内容..." 
+                                                  ondrop="handleDrop(event)" 
+                                                  ondragover="handleDragOver(event)"
+                                                  onpaste="handlePaste(event)"
+                                                  oninput="onMarkdownChangeSplit()"
+                                                  style="border: none; border-radius: 0; height: 100%;"></textarea>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <div id="markdownPreviewSplit" class="markdown-preview" style="border: none; border-radius: 0;">
+                                            <div class="text-muted text-center">
+                                                <i class="bi bi-eye-slash"></i><br>
+                                                输入内容查看预览
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 text-muted small">
+                            <i class="bi bi-info-circle"></i> 
+                            支持拖拽图片文件或使用Ctrl+V粘贴剪贴板中的图片
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载中状态 -->
+        <div class="card" id="loadingCard">
+            <div class="card-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-2">正在加载文件内容...</p>
+            </div>
+        </div>
+
+        <!-- 错误状态 -->
+        <div class="card" id="errorCard" style="display: none;">
+            <div class="card-body text-center">
+                <div class="text-danger">
+                    <i class="bi bi-exclamation-triangle-fill fs-1"></i>
+                    <h5 class="mt-2">加载失败</h5>
+                    <p id="errorMessage">文件加载失败，请重试</p>
+                    <button class="btn btn-outline-primary" onclick="location.reload()">重新加载</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <script>
+        let currentFilePath = '';
+        let isMarkdown = false;
+        let currentMode = 'edit';
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFileFromParams();
+            initializeMarkdownRenderer();
+        });
+        
+        // 初始化Markdown渲染器
+        function initializeMarkdownRenderer() {
+            if (typeof marked !== 'undefined') {
+                // 配置marked选项
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            try {
+                                return hljs.highlight(code, {language: lang}).value;
+                            } catch (err) {}
+                        }
+                        return hljs.highlightAuto(code).value;
+                    },
+                    breaks: true,
+                    gfm: true
+                });
+            }
+        }
+
+        // 从URL参数加载文件
+        function loadFileFromParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const filePath = urlParams.get('file');
+            
+            if (!filePath) {
+                showError('未指定要编辑的文件');
+                return;
+            }
+            
+            currentFilePath = filePath;
+            loadFileContent(filePath);
+        }
+
+        // 加载文件内容
+        function loadFileContent(path) {
+            const url = '/api/file-content?path=' + encodeURIComponent(path);
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showError('加载文件失败: ' + data.error);
+                        return;
+                    }
+                    
+                    // 隐藏加载状态
+                    document.getElementById('loadingCard').style.display = 'none';
+                    
+                    // 确定文件类型
+                    isMarkdown = data.is_markdown;
+                    const fileName = path.split('/').pop();
+                    
+                    if (isMarkdown) {
+                        showMarkdownEditor(fileName, data);
+                    } else {
+                        showTextEditor(fileName, data.content);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('网络错误，请重试');
+                });
+        }
+
+        // 显示文本编辑器
+        function showTextEditor(fileName, content) {
+            document.getElementById('textFileName').textContent = fileName;
+            document.getElementById('editor').value = content;
+            document.getElementById('textEditor').style.display = 'block';
+        }
+
+        // 显示Markdown编辑器
+        function showMarkdownEditor(fileName, data) {
+            document.getElementById('markdownFileName').textContent = fileName;
+            
+            // 填充数据
+            if (data.parsed) {
+                fillFrontMatterForm(data.parsed.front_matter);
+                document.getElementById('markdownContent').value = data.parsed.content;
+            } else {
+                // 没有front matter，直接显示内容
+                clearFrontMatterForm();
+                document.getElementById('markdownContent').value = data.content;
+            }
+            
+            document.getElementById('markdownEditor').style.display = 'block';
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('loadingCard').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorCard').style.display = 'block';
+        }
+
+        // 保存文本文件
+        function saveTextFile() {
+            if (!currentFilePath) {
+                alert('没有打开的文件');
+                return;
+            }
+
+            const content = document.getElementById('editor').value;
+            
+            fetch('/api/save-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    path: currentFilePath,
+                    content: content
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('保存失败: ' + data.error);
+                    return;
+                }
+                
+                showSaveSuccess('textSaveBtn');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('保存失败');
+            });
+        }
+
+        // 保存Markdown文件
+        function saveMarkdownFile() {
+            if (!currentFilePath) {
+                alert('没有打开的文件');
+                return;
+            }
+
+            // 收集Front Matter数据
+            const frontMatter = {
+                title: document.getElementById('frontTitle').value,
+                author: document.getElementById('frontAuthor').value,
+                type: document.getElementById('frontType').value,
+                url: document.getElementById('frontUrl').value,
+                date: document.getElementById('frontDate').value ? new Date(document.getElementById('frontDate').value).toISOString() : '',
+                categories: document.getElementById('frontCategories').value.split('\n').filter(cat => cat.trim()),
+                tags: document.getElementById('frontTags').value.split('\n').filter(tag => tag.trim())
+            };
+
+            const content = document.getElementById('markdownContent').value;
+            
+            fetch('/api/save-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    path: currentFilePath,
+                    content: content,
+                    is_markdown: true,
+                    front_matter: frontMatter
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('保存失败: ' + data.error);
+                    return;
+                }
+                
+                showSaveSuccess('markdownSaveBtn');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('保存失败');
+            });
+        }
+
+        // 显示保存成功状态
+        function showSaveSuccess(buttonId) {
+            const saveBtn = document.getElementById(buttonId);
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="bi bi-check"></i> 已保存';
+            saveBtn.classList.remove('btn-success');
+            saveBtn.classList.add('btn-outline-success');
+            
+            setTimeout(() => {
+                saveBtn.innerHTML = originalText;
+                saveBtn.classList.remove('btn-outline-success');
+                saveBtn.classList.add('btn-success');
+            }, 2000);
+        }
+
+        // 填充Front Matter表单
+        function fillFrontMatterForm(frontMatter) {
+            if (!frontMatter) return;
+            
+            document.getElementById('frontTitle').value = frontMatter.title || '';
+            document.getElementById('frontAuthor').value = frontMatter.author || '';
+            document.getElementById('frontType').value = frontMatter.type || 'post';
+            document.getElementById('frontUrl').value = frontMatter.url || '';
+            
+            // 处理日期格式
+            if (frontMatter.date) {
+                try {
+                    const date = new Date(frontMatter.date);
+                    const isoString = date.toISOString().slice(0, 16);
+                    document.getElementById('frontDate').value = isoString;
+                } catch (e) {
+                    document.getElementById('frontDate').value = '';
+                }
+            }
+            
+            // 处理分类和标签数组
+            document.getElementById('frontCategories').value = (frontMatter.categories || []).join('\n');
+            document.getElementById('frontTags').value = (frontMatter.tags || []).join('\n');
+        }
+
+        // 清空Front Matter表单
+        function clearFrontMatterForm() {
+            document.getElementById('frontTitle').value = '';
+            document.getElementById('frontAuthor').value = '';
+            document.getElementById('frontType').value = 'post';
+            document.getElementById('frontUrl').value = '';
+            document.getElementById('frontDate').value = '';
+            document.getElementById('frontCategories').value = '';
+            document.getElementById('frontTags').value = '';
+        }
+
+        // 返回文件列表
+        function goBack() {
+            window.location.href = '/files';
+        }
+
+        // 图片相关功能
+        function insertImage() {
+            document.getElementById('imageUpload').click();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            uploadImageFile(file);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            
+            const files = event.dataTransfer.files;
+            for (let file of files) {
+                if (file.type.startsWith('image/')) {
+                    uploadImageFile(file);
+                }
+            }
+        }
+
+        function handlePaste(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const file = item.getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        uploadImageBase64(e.target.result, file.name || 'pasted-image');
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        function uploadImageFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('上传失败: ' + data.error);
+                    return;
+                }
+                
+                insertImageMarkdown(data.url, file.name);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传失败');
+            });
+        }
+
+        function uploadImageBase64(imageData, filename) {
+            fetch('/api/upload-image-base64', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image_data: imageData,
+                    filename: filename
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('上传失败: ' + data.error);
+                    return;
+                }
+                
+                insertImageMarkdown(data.url, data.filename);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传失败');
+            });
+        }
+
+        function insertImageMarkdown(url, filename) {
+            // 根据当前模式选择正确的textarea
+            let textarea;
+            if (currentMode === 'split') {
+                textarea = document.getElementById('markdownContentSplit');
+            } else {
+                textarea = document.getElementById('markdownContent');
+            }
+            
+            const cursorPos = textarea.selectionStart;
+            const textBefore = textarea.value.substring(0, cursorPos);
+            const textAfter = textarea.value.substring(cursorPos);
+            
+            const imageMarkdown = `![${filename}](${url})`;
+            textarea.value = textBefore + imageMarkdown + textAfter;
+            
+            // 设置光标位置到图片后面
+            textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
+            textarea.focus();
+            
+            // 同步内容并更新预览
+            if (currentMode === 'split') {
+                document.getElementById('markdownContent').value = textarea.value;
+                updatePreviewSplit();
+            } else {
+                onMarkdownChange();
+            }
+        }
+
+        // 切换编辑器模式
+        function switchTab(mode) {
+            // 清除之前的活跃状态
+            document.querySelectorAll('.editor-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('#editMode, #previewMode, #splitMode').forEach(mode => mode.style.display = 'none');
+            
+            // 激活当前标签
+            document.getElementById(mode + 'Tab').classList.add('active');
+            
+            currentMode = mode;
+            
+            switch(mode) {
+                case 'edit':
+                    document.getElementById('editMode').style.display = 'block';
+                    break;
+                case 'preview':
+                    document.getElementById('previewMode').style.display = 'block';
+                    updatePreview();
+                    break;
+                case 'split':
+                    document.getElementById('splitMode').style.display = 'block';
+                    // 同步内容到分屏编辑器
+                    const content = document.getElementById('markdownContent').value;
+                    document.getElementById('markdownContentSplit').value = content;
+                    updatePreviewSplit();
+                    break;
+            }
+        }
+        
+        // 更新预览内容
+        function updatePreview() {
+            const content = document.getElementById('markdownContent').value;
+            const previewDiv = document.getElementById('markdownPreview');
+            
+            if (!content.trim()) {
+                previewDiv.innerHTML = '<div class="text-muted text-center"><i class="bi bi-eye-slash"></i><br>输入Markdown内容以查看预览</div>';
+                return;
+            }
+            
+            try {
+                if (typeof marked !== 'undefined') {
+                    const html = marked.parse(content);
+                    previewDiv.innerHTML = html;
+                } else {
+                    previewDiv.innerHTML = '<div class="text-danger text-center"><i class="bi bi-exclamation-triangle"></i><br>Markdown解析器未加载</div>';
+                }
+            } catch (error) {
+                console.error('Markdown parsing error:', error);
+                previewDiv.innerHTML = '<div class="text-danger text-center"><i class="bi bi-exclamation-triangle"></i><br>Markdown解析错误</div>';
+            }
+        }
+        
+        // 更新分屏预览内容
+        function updatePreviewSplit() {
+            const content = document.getElementById('markdownContentSplit').value;
+            const previewDiv = document.getElementById('markdownPreviewSplit');
+            
+            if (!content.trim()) {
+                previewDiv.innerHTML = '<div class="text-muted text-center"><i class="bi bi-eye-slash"></i><br>输入内容查看预览</div>';
+                return;
+            }
+            
+            try {
+                if (typeof marked !== 'undefined') {
+                    const html = marked.parse(content);
+                    previewDiv.innerHTML = html;
+                } else {
+                    previewDiv.innerHTML = '<div class="text-danger text-center"><i class="bi bi-exclamation-triangle"></i><br>Markdown解析器未加载</div>';
+                }
+            } catch (error) {
+                console.error('Markdown parsing error:', error);
+                previewDiv.innerHTML = '<div class="text-danger text-center"><i class="bi bi-exclamation-triangle"></i><br>Markdown解析错误</div>';
+            }
+        }
+        
+        // Markdown内容变化时的处理
+        function onMarkdownChange() {
+            // 如果当前是预览模式，实时更新预览
+            if (currentMode === 'preview') {
+                updatePreview();
+            }
+            // 同步到分屏编辑器
+            if (currentMode === 'split') {
+                const content = document.getElementById('markdownContent').value;
+                document.getElementById('markdownContentSplit').value = content;
+                updatePreviewSplit();
+            }
+        }
+        
+        // 分屏编辑器内容变化时的处理
+        function onMarkdownChangeSplit() {
+            updatePreviewSplit();
+            // 同步回主编辑器
+            const content = document.getElementById('markdownContentSplit').value;
+            document.getElementById('markdownContent').value = content;
+        }
+    </script>
+</body>
+</html>
+{{ end }}

@@ -1,0 +1,681 @@
+package utils
+
+import (
+	"context"
+	"crypto/rand"
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/crypto/ssh"
+	"hugo-manager-go/config"
+)
+
+// SSHClient 包装了SSH连接和相关方法
+type SSHClient struct {
+	client *ssh.Client
+	config *ssh.ClientConfig
+	host   string
+	port   int
+}
+
+// DeployResult 部署结果
+type DeployResult struct {
+	Success          bool
+	Message          string
+	Output           string
+	FilesDeployed    int
+	BytesTransferred int64
+}
+
+// 创建SSH客户端
+func NewSSHClient(sshConfig config.SSHConfig) (*SSHClient, error) {
+	var auth []ssh.AuthMethod
+	
+	if sshConfig.KeyPath != "" {
+		// 使用私钥认证
+		key, err := os.ReadFile(sshConfig.KeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("无法读取私钥文件: %v", err)
+		}
+		
+		signer, err := ssh.ParsePrivateKey(key)
+		if err != nil {
+			return nil, fmt.Errorf("无法解析私钥: %v", err)
+		}
+		
+		auth = []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		}
+	} else if sshConfig.Password != "" {
+		// 使用密码认证
+		auth = []ssh.AuthMethod{
+			ssh.Password(sshConfig.Password),
+		}
+	} else {
+		return nil, fmt.Errorf("必须提供密钥文件或密码")
+	}
+	
+	clientConfig := &ssh.ClientConfig{
+		User: sshConfig.Username,
+		Auth: auth,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 注意：生产环境应该验证主机密钥
+		Timeout: 15 * time.Second,
+	}
+	
+	return &SSHClient{
+		config: clientConfig,
+		host:   sshConfig.Host,
+		port:   sshConfig.Port,
+	}, nil
+}
+
+// 连接到SSH服务器
+func (c *SSHClient) Connect(ctx context.Context) error {
+	addr := net.JoinHostPort(c.host, strconv.Itoa(c.port))
+	
+	// 创建带超时的连接
+	conn, err := net.DialTimeout("tcp", addr, c.config.Timeout)
+	if err != nil {
+		return fmt.Errorf("无法连接到 %s: %v", addr, err)
+	}
+	
+	// 检查上下文是否已取消
+	select {
+	case <-ctx.Done():
+		conn.Close()
+		return ctx.Err()
+	default:
+	}
+	
+	// 创建SSH连接
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, c.config)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("SSH握手失败: %v", err)
+	}
+	
+	c.client = ssh.NewClient(sshConn, chans, reqs)
+	return nil
+}
+
+// 关闭连接
+func (c *SSHClient) Close() error {
+	if c.client != nil {
+		return c.client.Close()
+	}
+	return nil
+}
+
+// 测试SSH连接
+func (c *SSHClient) TestConnection(ctx context.Context) error {
+	if err := c.Connect(ctx); err != nil {
+		return err
+	}
+	defer c.Close()
+	
+	// 执行一个简单的命令来验证连接
+	session, err := c.client.NewSession()
+	if err != nil {
+		return fmt.Errorf("无法创建SSH会话: %v", err)
+	}
+	defer session.Close()
+	
+	output, err := session.Output("echo 'SSH连接测试成功'")
+	if err != nil {
+		return fmt.Errorf("命令执行失败: %v", err)
+	}
+	
+	if !strings.Contains(string(output), "SSH连接测试成功") {
+		return fmt.Errorf("SSH连接验证失败")
+	}
+	
+	return nil
+}
+
+// 执行rsync命令进行文件同步
+func (c *SSHClient) ExecuteRsync(ctx context.Context, localPath, remotePath string, incremental bool) (*DeployResult, error) {
+	if err := c.Connect(ctx); err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("SSH连接失败: %v", err),
+		}, err
+	}
+	defer c.Close()
+	
+	// 构建rsync命令
+	rsyncArgs := []string{"-avz", "--stats"}
+	if incremental {
+		rsyncArgs = append(rsyncArgs, "--update", "--times")
+	} else {
+		rsyncArgs = append(rsyncArgs, "--delete")
+	}
+	
+	// 检查本地目录是否存在
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("本地目录不存在: %s", localPath),
+		}, err
+	}
+	
+	// 确保远程目录存在
+	if err := c.ensureRemoteDirectory(remotePath); err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("无法创建远程目录: %v", err),
+		}, err
+	}
+	
+	// 使用tar进行文件传输（更可靠的方法）
+	return c.transferFiles(ctx, localPath, remotePath, incremental)
+}
+
+// 确保远程目录存在
+func (c *SSHClient) ensureRemoteDirectory(remotePath string) error {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	
+	cmd := fmt.Sprintf("mkdir -p %s", remotePath)
+	return session.Run(cmd)
+}
+
+// 文件传输任务
+type FileTask struct {
+	LocalFile  string
+	RemoteFile string
+	Size       int64
+	ModTime    time.Time
+}
+
+// 使用并发传输文件
+func (c *SSHClient) transferFiles(ctx context.Context, localPath, remotePath string, incremental bool) (*DeployResult, error) {
+	result := &DeployResult{}
+	
+	// 检查是否有未完成的上传任务
+	existingTasks := config.GetUploadTasks()
+	var fileTasks []FileTask
+	
+	if len(existingTasks) > 0 && !config.IsDeploymentPaused() {
+		// 使用现有任务列表，过滤掉已完成的
+		fmt.Println("发现未完成的上传任务，继续上传...")
+		for _, uploadTask := range existingTasks {
+			if !uploadTask.Completed {
+				fileTasks = append(fileTasks, FileTask{
+					LocalFile:  uploadTask.LocalFile,
+					RemoteFile: uploadTask.RemoteFile,
+					Size:       uploadTask.Size,
+					ModTime:    uploadTask.CreatedAt,
+				})
+			}
+		}
+	} else {
+		// 收集需要传输的文件
+		var err error
+		fileTasks, err = c.collectFileTasks(localPath, remotePath, incremental)
+		if err != nil {
+			return &DeployResult{
+				Success: false,
+				Message: fmt.Sprintf("收集文件任务失败: %v", err),
+			}, err
+		}
+		
+		// 保存任务列表以便恢复
+		c.saveUploadTasks(fileTasks)
+	}
+	
+	if len(fileTasks) == 0 {
+		config.RemoveCompletedTasks()
+		result.Success = true
+		result.Message = "没有文件需要传输"
+		result.Output = "所有文件都是最新的"
+		result.FilesDeployed = 0
+		result.BytesTransferred = 0
+		return result, nil
+	}
+	
+	// 设置为非暂停状态
+	config.SetDeploymentPaused(false)
+	
+	// 并发传输文件
+	err := c.transferFilesConcurrently(ctx, fileTasks)
+	if err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("文件传输失败: %v", err),
+		}, err
+	}
+	
+	// 计算传输统计
+	var totalSize int64
+	for _, task := range fileTasks {
+		totalSize += task.Size
+	}
+	
+	// 清理完成的任务
+	config.RemoveCompletedTasks()
+	
+	result.Success = true
+	result.Message = "文件传输完成"
+	result.Output = fmt.Sprintf("成功传输 %d 个文件，共 %d 字节", len(fileTasks), totalSize)
+	result.FilesDeployed = len(fileTasks)
+	result.BytesTransferred = totalSize
+	
+	return result, nil
+}
+
+// 收集需要传输的文件任务
+func (c *SSHClient) collectFileTasks(localPath, remotePath string, incremental bool) ([]FileTask, error) {
+	var tasks []FileTask
+	
+	err := filepath.Walk(localPath, func(localFile string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// 跳过目录
+		if info.IsDir() {
+			return nil
+		}
+		
+		// 计算相对路径
+		relPath, err := filepath.Rel(localPath, localFile)
+		if err != nil {
+			return err
+		}
+		
+		// 构建远程文件路径
+		remoteFile := filepath.Join(remotePath, relPath)
+		// 在Unix系统上使用正斜杠
+		remoteFile = strings.ReplaceAll(remoteFile, "\\", "/")
+		
+		// 检查是否需要传输
+		needTransfer := true
+		if incremental {
+			needTransfer, err = c.shouldTransferFile(localFile, remoteFile, info)
+			if err != nil {
+				fmt.Printf("检查文件失败 %s: %v\n", remoteFile, err)
+				// 如果检查失败，仍然传输文件
+				needTransfer = true
+			}
+		}
+		
+		if needTransfer {
+			tasks = append(tasks, FileTask{
+				LocalFile:  localFile,
+				RemoteFile: remoteFile,
+				Size:       info.Size(),
+				ModTime:    info.ModTime(),
+			})
+		} else {
+			fmt.Printf("跳过文件（已是最新）: %s\n", remoteFile)
+		}
+		
+		return nil
+	})
+	
+	return tasks, err
+}
+
+// 检查文件是否需要传输
+func (c *SSHClient) shouldTransferFile(localFile, remoteFile string, localInfo os.FileInfo) (bool, error) {
+	// 检查远程文件是否存在
+	session, err := c.client.NewSession()
+	if err != nil {
+		return true, err
+	}
+	defer session.Close()
+	
+	// 使用stat命令获取远程文件信息
+	cmd := fmt.Sprintf("stat -c '%%s %%Y' %s 2>/dev/null || echo 'NOTEXIST'", remoteFile)
+	output, err := session.Output(cmd)
+	if err != nil {
+		return true, err
+	}
+	
+	result := strings.TrimSpace(string(output))
+	if result == "NOTEXIST" {
+		return true, nil // 远程文件不存在，需要传输
+	}
+	
+	// 解析远程文件信息
+	parts := strings.Fields(result)
+	if len(parts) != 2 {
+		return true, nil // 无法解析，传输文件
+	}
+	
+	remoteSize, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return true, nil
+	}
+	
+	remoteMtime, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return true, nil
+	}
+	
+	// 比较文件大小和修改时间
+	localSize := localInfo.Size()
+	localMtime := localInfo.ModTime().Unix()
+	
+	// 如果大小不同，需要传输
+	if localSize != remoteSize {
+		return true, nil
+	}
+	
+	// 如果本地文件更新，需要传输
+	if localMtime > remoteMtime {
+		return true, nil
+	}
+	
+	// 文件相同，不需要传输
+	return false, nil
+}
+
+// 保存上传任务列表
+func (c *SSHClient) saveUploadTasks(fileTasks []FileTask) {
+	var uploadTasks []config.UploadTask
+	for _, task := range fileTasks {
+		// 生成随机ID
+		id := generateTaskID()
+		uploadTasks = append(uploadTasks, config.UploadTask{
+			ID:         id,
+			LocalFile:  task.LocalFile,
+			RemoteFile: task.RemoteFile,
+			Size:       task.Size,
+			Completed:  false,
+			CreatedAt:  time.Now(),
+		})
+	}
+	config.SetUploadTasks(uploadTasks)
+}
+
+// 生成任务ID
+func generateTaskID() string {
+	bytes := make([]byte, 4)
+	rand.Read(bytes)
+	return fmt.Sprintf("%x", bytes)
+}
+
+// 并发传输文件（支持暂停/继续）
+func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileTask) error {
+	const maxConcurrency = 4 // 最大并发数
+	
+	// 创建工作池
+	taskChan := make(chan FileTask, len(tasks))
+	errorChan := make(chan error, maxConcurrency)
+	pauseChan := make(chan struct{}, 1)
+	var wg sync.WaitGroup
+	
+	// 启动暂停检查goroutine
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if config.IsDeploymentPaused() {
+					select {
+					case pauseChan <- struct{}{}:
+					default:
+					}
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	
+	// 启动worker goroutines
+	for i := 0; i < maxConcurrency; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for task := range taskChan {
+				// 检查是否暂停
+				select {
+				case <-pauseChan:
+					fmt.Printf("[Worker %d] 检测到暂停信号，停止上传\n", workerID+1)
+					return
+				default:
+				}
+				
+				fmt.Printf("[Worker %d] 传输文件: %s -> %s (%d 字节)\n", 
+					workerID+1, task.LocalFile, task.RemoteFile, task.Size)
+				
+				err := c.uploadSingleFile(task)
+				if err != nil {
+					select {
+					case errorChan <- fmt.Errorf("传输失败 %s: %v", task.RemoteFile, err):
+					default:
+					}
+					return
+				}
+				
+				// 标记任务为已完成
+				c.markTaskCompleted(task)
+			}
+		}(i)
+	}
+	
+	// 发送任务
+	go func() {
+		defer close(taskChan)
+		for _, task := range tasks {
+			select {
+			case taskChan <- task:
+			case <-ctx.Done():
+				return
+			case <-pauseChan:
+				fmt.Println("任务分发已暂停")
+				return
+			}
+		}
+	}()
+	
+	// 等待所有worker完成或暂停
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
+		// 正常完成
+	case <-pauseChan:
+		// 暂停信号
+		return fmt.Errorf("上传已暂停")
+	case <-ctx.Done():
+		// 上下文取消
+		return ctx.Err()
+	}
+	
+	// 检查是否有错误
+	select {
+	case err := <-errorChan:
+		return err
+	default:
+		return nil
+	}
+}
+
+// 标记任务为已完成
+func (c *SSHClient) markTaskCompleted(task FileTask) {
+	existingTasks := config.GetUploadTasks()
+	for _, uploadTask := range existingTasks {
+		if uploadTask.LocalFile == task.LocalFile && uploadTask.RemoteFile == task.RemoteFile {
+			config.MarkTaskCompleted(uploadTask.ID)
+			fmt.Printf("标记任务完成: %s\n", task.RemoteFile)
+			break
+		}
+	}
+}
+
+// 上传单个文件
+func (c *SSHClient) uploadSingleFile(task FileTask) error {
+	// 确保远程目录存在
+	remoteDir := filepath.Dir(task.RemoteFile)
+	if err := c.createRemoteDirectory(remoteDir); err != nil {
+		return fmt.Errorf("无法创建远程目录 %s: %v", remoteDir, err)
+	}
+	
+	// 读取本地文件
+	localData, err := os.ReadFile(task.LocalFile)
+	if err != nil {
+		return err
+	}
+	
+	// 创建SSH会话
+	session, err := c.client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	
+	// 使用cat命令直接写入文件
+	cmd := fmt.Sprintf("cat > %s", task.RemoteFile)
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		return err
+	}
+	
+	if err := session.Start(cmd); err != nil {
+		return err
+	}
+	
+	// 写入文件内容
+	_, err = stdin.Write(localData)
+	if err != nil {
+		stdin.Close()
+		return err
+	}
+	
+	// 关闭stdin以发送EOF
+	stdin.Close()
+	
+	// 等待命令完成
+	if err := session.Wait(); err != nil {
+		return fmt.Errorf("文件上传失败: %v", err)
+	}
+	
+	// 验证文件是否上传成功
+	if err := c.verifyFileUpload(task.RemoteFile, task.Size); err != nil {
+		return fmt.Errorf("文件上传验证失败: %v", err)
+	}
+	
+	// 设置文件时间戳
+	return c.setFileAttributes(task.RemoteFile, task.ModTime)
+}
+
+// 验证文件上传
+func (c *SSHClient) verifyFileUpload(remoteFile string, expectedSize int64) error {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	
+	// 检查文件大小
+	cmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo '0'", remoteFile)
+	output, err := session.Output(cmd)
+	if err != nil {
+		return err
+	}
+	
+	actualSize, err := strconv.ParseInt(strings.TrimSpace(string(output)), 10, 64)
+	if err != nil {
+		return err
+	}
+	
+	if actualSize != expectedSize {
+		return fmt.Errorf("文件大小不匹配，期望 %d 字节，实际 %d 字节", expectedSize, actualSize)
+	}
+	
+	return nil
+}
+
+// 设置文件属性
+func (c *SSHClient) setFileAttributes(remoteFile string, modTime time.Time) error {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return nil // 忽略权限设置错误
+	}
+	defer session.Close()
+	
+	// 设置文件时间戳
+	touchCmd := fmt.Sprintf("touch -d '%s' %s", modTime.Format("2006-01-02 15:04:05"), remoteFile)
+	session.Run(touchCmd)
+	
+	return nil
+}
+
+// 创建远程目录
+func (c *SSHClient) createRemoteDirectory(remotePath string) error {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	
+	cmd := fmt.Sprintf("mkdir -p %s", remotePath)
+	return session.Run(cmd)
+}
+
+
+// 计算本地文件统计
+func (c *SSHClient) calculateLocalStats(localPath string) (int, int64, error) {
+	var fileCount int
+	var totalSize int64
+	
+	err := filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			fileCount++
+			totalSize += info.Size()
+		}
+		return nil
+	})
+	
+	return fileCount, totalSize, err
+}
+
+// 便捷函数：测试SSH连接
+func TestSSHConnection(sshConfig config.SSHConfig) error {
+	client, err := NewSSHClient(sshConfig)
+	if err != nil {
+		return err
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	
+	return client.TestConnection(ctx)
+}
+
+// 便捷函数：执行部署
+func ExecuteDeployment(sshConfig config.SSHConfig, localPath, remotePath string, incremental bool) (*DeployResult, error) {
+	client, err := NewSSHClient(sshConfig)
+	if err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("创建SSH客户端失败: %v", err),
+		}, err
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	
+	return client.ExecuteRsync(ctx, localPath, remotePath, incremental)
+}

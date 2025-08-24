@@ -1,0 +1,527 @@
+{{ define "settings/index.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-house-door"></i> Hugo 管理器
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> 首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/files">
+                            <i class="bi bi-folder"></i> 文件管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/images">
+                            <i class="bi bi-folder2-open"></i> 静态文件
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/deploy">
+                            <i class="bi bi-cloud-upload"></i> 部署管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/trash">
+                            <i class="bi bi-trash"></i> 回收站
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/settings">
+                            <i class="bi bi-gear"></i> 设置
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <h2>项目设置</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Hugo 项目路径</h5>
+                <form method="post" action="/settings/update">
+                    <div class="mb-3">
+                        <label for="hugo_project_path" class="form-label">Hugo 项目根目录</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="hugo_project_path" name="hugo_project_path" 
+                                   value="{{ .HugoProjectPath }}" placeholder="例如: C:/hugo/ 或 /path/to/your/hugo/project">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showFolderBrowser()">浏览</button>
+                        </div>
+                        <div class="form-text">请输入Hugo项目的根目录路径，该目录应包含config.toml等配置文件</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 文件夹选择模态框 -->
+        <div class="modal fade" id="folderBrowserModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">选择Hugo项目文件夹</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb" id="breadcrumb">
+                                    <li class="breadcrumb-item active">加载中...</li>
+                                </ol>
+                            </nav>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="currentPath" placeholder="当前路径" readonly>
+                        </div>
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>文件夹名称</th>
+                                        <th>类型</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="folderList">
+                                    <tr><td colspan="3" class="text-center">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="selectCurrentFolder()">选择当前文件夹</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <h6>说明：</h6>
+            <ul class="mb-0">
+                <li>Hugo项目目录应包含config.toml、config.yaml等配置文件</li>
+                <li>文章将从 <code>项目目录/content/</code> 中读取</li>
+                <li>图片将上传到 <code>项目目录/static/images/</code></li>
+                <li>修改设置后，重新加载首页即可看到新项目的文章列表</li>
+            </ul>
+        </div>
+
+        <!-- Hugo配置管理 -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Hugo配置管理</h5>
+                <p class="text-muted">管理Hugo站点的基本配置参数，修改后需要重新构建站点才能生效。</p>
+                
+                <form id="hugoConfigForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">站点标题 *</label>
+                                <input type="text" class="form-control" id="hugoTitle" placeholder="我的Hugo博客">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">基础URL *</label>
+                                <input type="text" class="form-control" id="hugoBaseURL" placeholder="https://example.com">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">语言代码</label>
+                                <select class="form-select" id="hugoLanguage">
+                                    <option value="zh-cn">中文 (zh-cn)</option>
+                                    <option value="en">English (en)</option>
+                                    <option value="ja">日本語 (ja)</option>
+                                    <option value="ko">한국어 (ko)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">主题名称</label>
+                                <input type="text" class="form-control" id="hugoTheme" placeholder="ananke">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">时区</label>
+                                <select class="form-select" id="hugoTimezone">
+                                    <option value="Asia/Shanghai">Asia/Shanghai (中国)</option>
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">America/New_York</option>
+                                    <option value="Europe/London">Europe/London</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">每页文章数</label>
+                                <input type="number" class="form-control" id="hugoPaginate" value="10" min="1" max="50">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">站点描述</label>
+                        <textarea class="form-control" id="hugoDescription" rows="3" placeholder="这是一个用Hugo构建的精美博客"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">作者姓名</label>
+                                <input type="text" class="form-control" id="hugoAuthor" placeholder="您的名字">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">作者邮箱</label>
+                                <input type="email" class="form-control" id="hugoAuthorEmail" placeholder="author@example.com">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hugoBuildDrafts">
+                            <label class="form-check-label" for="hugoBuildDrafts">
+                                构建时包含草稿文章
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hugoBuildFuture">
+                            <label class="form-check-label" for="hugoBuildFuture">
+                                构建时包含未来日期的文章
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" onclick="saveHugoConfig()">
+                            <i class="bi bi-save"></i> 保存Hugo配置
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="loadHugoConfig()">
+                            <i class="bi bi-arrow-clockwise"></i> 重新加载
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="previewHugoConfig()">
+                            <i class="bi bi-eye"></i> 预览配置文件
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="hugoConfigResult" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">文件名修复工具</h5>
+                <p class="text-muted">如果遇到文件名编码问题或包含特殊字符的文件无法正常访问，可以使用此工具修复。</p>
+                <button class="btn btn-warning" onclick="repairFilenames()">
+                    <i class="bi bi-tools"></i> 修复文件名编码
+                </button>
+                <div id="repairResult" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center mt-5 text-muted">
+        Hugo Manager © 2025
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <script>
+        let currentBrowsePath = '';
+        const modal = new bootstrap.Modal(document.getElementById('folderBrowserModal'));
+
+        function showFolderBrowser() {
+            modal.show();
+            loadFolder('');
+        }
+
+        function loadFolder(path) {
+            const url = '/api/browse-folders' + (path ? '?path=' + encodeURIComponent(path) : '');
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('错误: ' + data.error);
+                        return;
+                    }
+                    
+                    currentBrowsePath = data.current_path;
+                    updateBreadcrumb(data.current_path);
+                    updateCurrentPath(data.current_path);
+                    updateFolderList(data.items);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('加载文件夹失败');
+                });
+        }
+
+        function updateBreadcrumb(path) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const parts = path.split('/').filter(p => p);
+            let html = '';
+            
+            // Root
+            html += '<li class="breadcrumb-item"><a href="#" onclick="loadFolder(\'/\')">根目录</a></li>';
+            
+            // Path parts
+            let currentPath = '';
+            for (let i = 0; i < parts.length; i++) {
+                currentPath += '/' + parts[i];
+                if (i === parts.length - 1) {
+                    html += '<li class="breadcrumb-item active">' + parts[i] + '</li>';
+                } else {
+                    html += '<li class="breadcrumb-item"><a href="#" onclick="loadFolder(\'' + currentPath + '\')">' + parts[i] + '</a></li>';
+                }
+            }
+            
+            breadcrumb.innerHTML = html;
+        }
+
+        function updateCurrentPath(path) {
+            document.getElementById('currentPath').value = path;
+        }
+
+        function updateFolderList(items) {
+            const folderList = document.getElementById('folderList');
+            let html = '';
+            
+            if (items.length === 0) {
+                html = '<tr><td colspan="3" class="text-center">此目录为空</td></tr>';
+            } else {
+                for (const item of items) {
+                    const typeLabel = item.is_hugo ? 
+                        '<span class="badge bg-success">Hugo项目</span>' : 
+                        '<span class="badge bg-secondary">普通文件夹</span>';
+                    
+                    html += '<tr class="' + (item.is_hugo ? 'table-success' : '') + '">';
+                    html += '<td><i class="bi bi-folder"></i> ' + item.name + '</td>';
+                    html += '<td>' + typeLabel + '</td>';
+                    html += '<td>';
+                    html += '<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="loadFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">进入</button>';
+                    if (item.is_hugo) {
+                        html += '<button type="button" class="btn btn-sm btn-success" onclick="selectFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">选择</button>';
+                    }
+                    html += '</td>';
+                    html += '</tr>';
+                }
+            }
+            
+            folderList.innerHTML = html;
+        }
+
+        function selectFolder(path) {
+            document.getElementById('hugo_project_path').value = path;
+            modal.hide();
+        }
+
+        function selectCurrentFolder() {
+            document.getElementById('hugo_project_path').value = currentBrowsePath;
+            modal.hide();
+        }
+
+        // 页面加载时加载Hugo配置
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHugoConfig();
+        });
+
+        // 加载Hugo配置
+        function loadHugoConfig() {
+            fetch('/api/hugo-config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('加载Hugo配置失败:', data.error);
+                        return;
+                    }
+                    
+                    // 填充表单数据
+                    document.getElementById('hugoTitle').value = data.title || '';
+                    document.getElementById('hugoBaseURL').value = data.baseURL || '';
+                    document.getElementById('hugoLanguage').value = data.languageCode || 'zh-cn';
+                    document.getElementById('hugoTheme').value = data.theme || '';
+                    document.getElementById('hugoTimezone').value = data.timezone || 'Asia/Shanghai';
+                    document.getElementById('hugoPaginate').value = data.paginate || 10;
+                    document.getElementById('hugoDescription').value = data.description || '';
+                    document.getElementById('hugoAuthor').value = data.author || '';
+                    document.getElementById('hugoAuthorEmail').value = data.authorEmail || '';
+                    document.getElementById('hugoBuildDrafts').checked = data.buildDrafts || false;
+                    document.getElementById('hugoBuildFuture').checked = data.buildFuture || false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        // 保存Hugo配置
+        function saveHugoConfig() {
+            const config = {
+                title: document.getElementById('hugoTitle').value,
+                baseURL: document.getElementById('hugoBaseURL').value,
+                languageCode: document.getElementById('hugoLanguage').value,
+                theme: document.getElementById('hugoTheme').value,
+                timezone: document.getElementById('hugoTimezone').value,
+                paginate: parseInt(document.getElementById('hugoPaginate').value) || 10,
+                description: document.getElementById('hugoDescription').value,
+                author: document.getElementById('hugoAuthor').value,
+                authorEmail: document.getElementById('hugoAuthorEmail').value,
+                buildDrafts: document.getElementById('hugoBuildDrafts').checked,
+                buildFuture: document.getElementById('hugoBuildFuture').checked
+            };
+
+            // 验证必填字段
+            if (!config.title || !config.baseURL) {
+                alert('请填写站点标题和基础URL');
+                return;
+            }
+
+            fetch('/api/hugo-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showHugoConfigResult('保存失败: ' + data.error, 'danger');
+                    return;
+                }
+                
+                showHugoConfigResult('Hugo配置保存成功！配置文件已更新。', 'success');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showHugoConfigResult('保存失败: ' + error.message, 'danger');
+            });
+        }
+
+        // 预览Hugo配置文件
+        function previewHugoConfig() {
+            fetch('/api/hugo-config/preview')
+                .then(response => response.text())
+                .then(data => {
+                    const resultDiv = document.getElementById('hugoConfigResult');
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <h6>Hugo配置文件预览 (config.toml):</h6>
+                            <pre class="bg-dark text-light p-3 rounded" style="font-size: 0.9em; overflow-x: auto;">${data}</pre>
+                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="copyToClipboard('${data.replace(/'/g, "\\'")}')">
+                                <i class="bi bi-clipboard"></i> 复制配置
+                            </button>
+                        </div>
+                    `;
+                    resultDiv.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showHugoConfigResult('预览失败: ' + error.message, 'danger');
+                });
+        }
+
+        // 显示Hugo配置结果
+        function showHugoConfigResult(message, type) {
+            const resultDiv = document.getElementById('hugoConfigResult');
+            resultDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            resultDiv.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showHugoConfigResult('配置已复制到剪贴板', 'success');
+            });
+        }
+
+        // 修复文件名编码
+        function repairFilenames() {
+            const resultDiv = document.getElementById('repairResult');
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> 正在扫描和修复文件名...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/repair-filenames', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+                    return;
+                }
+
+                let html = '<div class="alert alert-success">' + data.message + '</div>';
+                
+                if (data.repaired_count > 0) {
+                    html += '<div class="alert alert-info"><h6>修复的文件 (' + data.repaired_count + '个):</h6><ul class="mb-0">';
+                    data.repaired.forEach(repair => {
+                        html += '<li><code>' + repair + '</code></li>';
+                    });
+                    html += '</ul></div>';
+                } else {
+                    html += '<div class="alert alert-info">没有发现需要修复的文件名。</div>';
+                }
+
+                if (data.error_count > 0) {
+                    html += '<div class="alert alert-warning"><h6>修复失败的文件 (' + data.error_count + '个):</h6><ul class="mb-0">';
+                    data.errors.forEach(error => {
+                        html += '<li><code>' + error + '</code></li>';
+                    });
+                    html += '</ul></div>';
+                }
+
+                resultDiv.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="alert alert-danger">修复失败: ' + error.message + '</div>';
+            });
+        }
+    </script>
+</body>
+</html>
+{{ end }}

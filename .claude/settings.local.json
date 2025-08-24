@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go run:*)",
+      "Bash(go get:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(true)",
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+      "Bash(grep:*)",
+      "Bash(go mod:*)",
+      "Bash(go build:*)",
+      "Bash(pkill:*)",
+      "Bash(./hugo-manager)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
