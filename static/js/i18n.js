@@ -9,7 +9,8 @@ const languageNames = {
     'zh-TW': '繁體中文', 
     'ja-JP': '日本語',
     'en-US': 'English',
-    'ru-RU': 'Русский'
+    'ru-RU': 'Русский',
+    'ko-KR': '한국어'
 };
 
 // Cookie操作函数
