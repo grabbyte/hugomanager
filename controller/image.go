@@ -42,5 +42,5 @@ func UploadImage(c *gin.Context) {
     io.Copy(out, src)
 
     // 返回Hugo项目中的相对路径
-    c.String(200, "/images/"+name)
+    c.String(200, "/uploads/images/"+name)
 }

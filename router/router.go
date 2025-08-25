@@ -27,6 +27,8 @@ func Start() {
 
 	// 动态静态文件服务路由
 	r.GET("/static/*filepath", controller.ServeStaticFile)
+	// Hugo项目上传的图片访问路由
+	r.GET("/uploads/*filepath", controller.ServeHugoStaticFile)
 
 	r.GET("/", controller.Home)
 	r.POST("/upload", controller.UploadImage)

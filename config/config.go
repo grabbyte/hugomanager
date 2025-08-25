@@ -153,7 +153,7 @@ func GetStaticDir() string {
 }
 
 func GetImagesDir() string {
-    return filepath.Join(currentConfig.HugoProjectPath, "static", "images")
+    return filepath.Join(currentConfig.HugoProjectPath, "static", "uploads", "images")
 }
 
 func GetSSHConfig() SSHConfig {

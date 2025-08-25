@@ -10,7 +10,6 @@ import (
     "os"
     "path/filepath"
     "strings"
-    "time"
 )
 
 // 处理粘贴上传的图片（base64格式）
@@ -56,18 +55,11 @@ func UploadImageBase64(c *gin.Context) {
         return
     }
     
-    // 生成文件名
+    // 生成基于文件内容的MD5文件名
     h := md5.New()
     h.Write(imageData)
-    h.Write([]byte(time.Now().String()))
     hash := fmt.Sprintf("%x", h.Sum(nil))
-    
     filename := hash + ext
-    if request.Filename != "" {
-        // 使用提供的文件名，但保留扩展名
-        name := strings.TrimSuffix(request.Filename, filepath.Ext(request.Filename))
-        filename = name + "_" + hash[:8] + ext
-    }
     
     // 保存文件
     uploadDir := config.GetImagesDir()
@@ -79,9 +71,9 @@ func UploadImageBase64(c *gin.Context) {
         return
     }
     
-    // 返回相对路径
+    // 返回Hugo项目中的相对路径
     c.JSON(200, gin.H{
-        "url":      "/images/" + filename,
+        "url":      "/uploads/images/" + filename,
         "filename": filename,
         "size":     len(imageData),
     })
@@ -147,7 +139,7 @@ func UploadImageFile(c *gin.Context) {
     }
     
     c.JSON(200, gin.H{
-        "url":      "/images/" + filename,
+        "url":      "/uploads/images/" + filename,
         "filename": filename,
         "size":     size,
     })
