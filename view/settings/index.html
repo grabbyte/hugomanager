@@ -11,22 +11,22 @@
 <body>
     {{ template "header" . }}
     <div class="container mt-4">
-        <h2>项目设置</h2>
+        <h2 data-i18n="settings.project.settings">项目设置</h2>
         
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Hugo 项目路径</h5>
+                <h5 class="card-title" data-i18n="settings.hugo.project.path">Hugo 项目路径</h5>
                 <form method="post" action="/settings/update">
                     <div class="mb-3">
-                        <label for="hugo_project_path" class="form-label">Hugo 项目根目录</label>
+                        <label for="hugo_project_path" class="form-label" data-i18n="settings.hugo.project.root">Hugo 项目根目录</label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="hugo_project_path" name="hugo_project_path" 
                                    value="{{ .HugoProjectPath }}" placeholder="例如: C:/hugo/ 或 /path/to/your/hugo/project">
-                            <button type="button" class="btn btn-outline-secondary" onclick="showFolderBrowser()">浏览</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="showFolderBrowser()" data-i18n="settings.browse">浏览</button>
                         </div>
-                        <div class="form-text">请输入Hugo项目的根目录路径，该目录应包含config.toml等配置文件</div>
+                        <div class="form-text" data-i18n="settings.path.description">请输入Hugo项目的根目录路径，该目录应包含config.toml等配置文件</div>
                     </div>
-                    <button type="submit" class="btn btn-primary">保存设置</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="settings.save.settings">保存设置</button>
                 </form>
             </div>
         </div>
@@ -36,71 +36,71 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">选择Hugo项目文件夹</h5>
+                        <h5 class="modal-title" data-i18n="settings.folder.browser.title">选择Hugo项目文件夹</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb" id="breadcrumb">
-                                    <li class="breadcrumb-item active">加载中...</li>
+                                    <li class="breadcrumb-item active" data-i18n="settings.loading">加载中...</li>
                                 </ol>
                             </nav>
                         </div>
                         <div class="mb-3">
-                            <input type="text" class="form-control" id="currentPath" placeholder="当前路径" readonly>
+                            <input type="text" class="form-control" id="currentPath" data-i18n-placeholder="settings.current.path" placeholder="当前路径" readonly>
                         </div>
                         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>文件夹名称</th>
-                                        <th>类型</th>
-                                        <th>操作</th>
+                                        <th data-i18n="settings.folder.name">文件夹名称</th>
+                                        <th data-i18n="settings.type">类型</th>
+                                        <th data-i18n="settings.actions">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="folderList">
-                                    <tr><td colspan="3" class="text-center">加载中...</td></tr>
+                                    <tr><td colspan="3" class="text-center" data-i18n="settings.loading">加载中...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                        <button type="button" class="btn btn-primary" onclick="selectCurrentFolder()">选择当前文件夹</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="settings.cancel">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="selectCurrentFolder()" data-i18n="settings.select.current.folder">选择当前文件夹</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="alert alert-info mt-3">
-            <h6>说明：</h6>
+            <h6 data-i18n="settings.description">说明：</h6>
             <ul class="mb-0">
-                <li>Hugo项目目录应包含config.toml、config.yaml等配置文件</li>
-                <li>文章将从 <code>项目目录/content/</code> 中读取</li>
-                <li>图片将上传到 <code>项目目录/static/images/</code></li>
-                <li>修改设置后，重新加载首页即可看到新项目的文章列表</li>
+                <li data-i18n="settings.config.description">Hugo项目目录应包含config.toml、config.yaml等配置文件</li>
+                <li><span data-i18n="settings.articles.from">文章将从</span> <code>项目目录/content/</code> 中读取</li>
+                <li><span data-i18n="settings.images.to">图片将上传到</span> <code>项目目录/static/images/</code></li>
+                <li data-i18n="settings.reload.homepage">修改设置后，重新加载首页即可看到新项目的文章列表</li>
             </ul>
         </div>
 
         <!-- Hugo配置管理 -->
         <div class="card mt-3">
             <div class="card-body">
-                <h5 class="card-title">Hugo配置管理</h5>
-                <p class="text-muted">管理Hugo站点的基本配置参数，修改后需要重新构建站点才能生效。</p>
+                <h5 class="card-title" data-i18n="settings.hugo.config.title">Hugo配置管理</h5>
+                <p class="text-muted" data-i18n="settings.hugo.config.description">管理Hugo站点的基本配置参数，修改后需要重新构建站点才能生效。</p>
                 
                 <form id="hugoConfigForm">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">站点标题 *</label>
-                                <input type="text" class="form-control" id="hugoTitle" placeholder="我的Hugo博客">
+                                <label class="form-label" data-i18n="settings.site.title">站点标题 *</label>
+                                <input type="text" class="form-control" id="hugoTitle" data-i18n-placeholder="settings.site.title.placeholder" placeholder="我的Hugo博客">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">基础URL *</label>
-                                <input type="text" class="form-control" id="hugoBaseURL" placeholder="https://example.com">
+                                <label class="form-label" data-i18n="settings.base.url">基础URL *</label>
+                                <input type="text" class="form-control" id="hugoBaseURL" data-i18n-placeholder="settings.base.url.placeholder" placeholder="https://example.com">
                             </div>
                         </div>
                     </div>
@@ -108,7 +108,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">语言代码</label>
+                                <label class="form-label" data-i18n="settings.language.code">语言代码</label>
                                 <select class="form-select" id="hugoLanguage">
                                     <option value="zh-cn">中文 (zh-cn)</option>
                                     <option value="en">English (en)</option>
@@ -118,8 +118,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">主题名称</label>
-                                <input type="text" class="form-control" id="hugoTheme" placeholder="ananke">
+                                <label class="form-label" data-i18n="settings.theme.name">主题名称</label>
+                                <input type="text" class="form-control" id="hugoTheme" data-i18n-placeholder="settings.theme.placeholder" placeholder="ananke">
                             </div>
                         </div>
                     </div>
@@ -127,7 +127,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">时区</label>
+                                <label class="form-label" data-i18n="settings.timezone">时区</label>
                                 <select class="form-select" id="hugoTimezone">
                                     <option value="Asia/Shanghai">Asia/Shanghai (中国)</option>
                                     <option value="UTC">UTC</option>
@@ -139,28 +139,28 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">每页文章数</label>
+                                <label class="form-label" data-i18n="settings.posts.per.page">每页文章数</label>
                                 <input type="number" class="form-control" id="hugoPaginate" value="10" min="1" max="50">
                             </div>
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">站点描述</label>
-                        <textarea class="form-control" id="hugoDescription" rows="3" placeholder="这是一个用Hugo构建的精美博客"></textarea>
+                        <label class="form-label" data-i18n="settings.site.description">站点描述</label>
+                        <textarea class="form-control" id="hugoDescription" rows="3" data-i18n-placeholder="settings.site.description.placeholder" placeholder="这是一个用Hugo构建的精美博客"></textarea>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">作者姓名</label>
-                                <input type="text" class="form-control" id="hugoAuthor" placeholder="您的名字">
+                                <label class="form-label" data-i18n="settings.author.name">作者姓名</label>
+                                <input type="text" class="form-control" id="hugoAuthor" data-i18n-placeholder="settings.author.name.placeholder" placeholder="您的名字">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">作者邮箱</label>
-                                <input type="email" class="form-control" id="hugoAuthorEmail" placeholder="author@example.com">
+                                <label class="form-label" data-i18n="settings.author.email">作者邮箱</label>
+                                <input type="email" class="form-control" id="hugoAuthorEmail" data-i18n-placeholder="settings.author.email.placeholder" placeholder="author@example.com">
                             </div>
                         </div>
                     </div>
@@ -168,7 +168,7 @@
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="hugoBuildDrafts">
-                            <label class="form-check-label" for="hugoBuildDrafts">
+                            <label class="form-check-label" for="hugoBuildDrafts" data-i18n="settings.build.drafts">
                                 构建时包含草稿文章
                             </label>
                         </div>
@@ -177,7 +177,7 @@
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="hugoBuildFuture">
-                            <label class="form-check-label" for="hugoBuildFuture">
+                            <label class="form-check-label" for="hugoBuildFuture" data-i18n="settings.build.future">
                                 构建时包含未来日期的文章
                             </label>
                         </div>
@@ -185,13 +185,13 @@
                     
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-primary" onclick="saveHugoConfig()">
-                            <i class="bi bi-save"></i> 保存Hugo配置
+                            <i class="bi bi-save"></i> <span data-i18n="settings.save.hugo.config">保存Hugo配置</span>
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="loadHugoConfig()">
-                            <i class="bi bi-arrow-clockwise"></i> 重新加载
+                            <i class="bi bi-arrow-clockwise"></i> <span data-i18n="settings.reload.config">重新加载</span>
                         </button>
                         <button type="button" class="btn btn-outline-info" onclick="previewHugoConfig()">
-                            <i class="bi bi-eye"></i> 预览配置文件
+                            <i class="bi bi-eye"></i> <span data-i18n="settings.preview.config">预览配置文件</span>
                         </button>
                     </div>
                 </form>
@@ -200,12 +200,29 @@
             </div>
         </div>
 
+        <!-- Hugo安装检查 -->
         <div class="card mt-3">
             <div class="card-body">
-                <h5 class="card-title">文件名修复工具</h5>
-                <p class="text-muted">如果遇到文件名编码问题或包含特殊字符的文件无法正常访问，可以使用此工具修复。</p>
+                <h5 class="card-title" data-i18n="hugo.install.title">Hugo安装管理</h5>
+                <p class="text-muted" data-i18n="hugo.install.description">检查Hugo是否已安装，如未安装可自动下载并安装最新版本。</p>
+                
+                <div id="hugoStatusContainer">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <span class="ms-2" data-i18n="hugo.install.checking">检查中...</span>
+                    </div>
+                </div>
+                
+                <div id="hugoInstallResult" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title" data-i18n="settings.filename.repair.title">文件名修复工具</h5>
+                <p class="text-muted" data-i18n="settings.filename.repair.description">如果遇到文件名编码问题或包含特殊字符的文件无法正常访问，可以使用此工具修复。</p>
                 <button class="btn btn-warning" onclick="repairFilenames()">
-                    <i class="bi bi-tools"></i> 修复文件名编码
+                    <i class="bi bi-tools"></i> <span data-i18n="settings.repair.filenames">修复文件名编码</span>
                 </button>
                 <div id="repairResult" class="mt-3" style="display: none;"></div>
             </div>
@@ -233,7 +250,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        alert('错误: ' + data.error);
+                        alert((window.getTranslation && window.getTranslation('settings.error') || '错误') + ': ' + data.error);
                         return;
                     }
                     
@@ -244,7 +261,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('加载文件夹失败');
+                    alert(window.getTranslation && window.getTranslation('settings.load.folder.failed') || '加载文件夹失败');
                 });
         }
 
@@ -254,7 +271,7 @@
             let html = '';
             
             // Root
-            html += '<li class="breadcrumb-item"><a href="#" onclick="loadFolder(\'/\')">根目录</a></li>';
+            html += '<li class="breadcrumb-item"><a href="#" onclick="loadFolder(\'/\')">' + (window.getTranslation && window.getTranslation('settings.root.directory') || '根目录') + '</a></li>';
             
             // Path parts
             let currentPath = '';
@@ -279,20 +296,20 @@
             let html = '';
             
             if (items.length === 0) {
-                html = '<tr><td colspan="3" class="text-center">此目录为空</td></tr>';
+                html = '<tr><td colspan="3" class="text-center">' + (window.getTranslation && window.getTranslation('settings.empty.directory') || '此目录为空') + '</td></tr>';
             } else {
                 for (const item of items) {
                     const typeLabel = item.is_hugo ? 
-                        '<span class="badge bg-success">Hugo项目</span>' : 
-                        '<span class="badge bg-secondary">普通文件夹</span>';
+                        '<span class="badge bg-success">' + (window.getTranslation && window.getTranslation('settings.hugo.project') || 'Hugo项目') + '</span>' : 
+                        '<span class="badge bg-secondary">' + (window.getTranslation && window.getTranslation('settings.normal.folder') || '普通文件夹') + '</span>';
                     
                     html += '<tr class="' + (item.is_hugo ? 'table-success' : '') + '">';
                     html += '<td><i class="bi bi-folder"></i> ' + item.name + '</td>';
                     html += '<td>' + typeLabel + '</td>';
                     html += '<td>';
-                    html += '<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="loadFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">进入</button>';
+                    html += '<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="loadFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">' + (window.getTranslation && window.getTranslation('settings.enter') || '进入') + '</button>';
                     if (item.is_hugo) {
-                        html += '<button type="button" class="btn btn-sm btn-success" onclick="selectFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">选择</button>';
+                        html += '<button type="button" class="btn btn-sm btn-success" onclick="selectFolder(\'' + item.path.replace(/\\/g, '\\\\') + '\')">' + (window.getTranslation && window.getTranslation('settings.select') || '选择') + '</button>';
                     }
                     html += '</td>';
                     html += '</tr>';
@@ -312,9 +329,10 @@
             modal.hide();
         }
 
-        // 页面加载时加载Hugo配置
+        // 页面加载时加载Hugo配置和检查Hugo安装状态
         document.addEventListener('DOMContentLoaded', function() {
             loadHugoConfig();
+            checkHugoInstallStatus();
         });
 
         // 加载Hugo配置
@@ -363,7 +381,7 @@
 
             // 验证必填字段
             if (!config.title || !config.baseURL) {
-                alert('请填写站点标题和基础URL');
+                alert(window.getTranslation && window.getTranslation('settings.required.fields') || '请填写站点标题和基础URL');
                 return;
             }
 
@@ -377,15 +395,15 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    showHugoConfigResult('保存失败: ' + data.error, 'danger');
+                    showHugoConfigResult((window.getTranslation && window.getTranslation('settings.save.failed') || '保存失败') + ': ' + data.error, 'danger');
                     return;
                 }
                 
-                showHugoConfigResult('Hugo配置保存成功！配置文件已更新。', 'success');
+                showHugoConfigResult(window.getTranslation && window.getTranslation('settings.hugo.config.saved') || 'Hugo配置保存成功！配置文件已更新。', 'success');
             })
             .catch(error => {
                 console.error('Error:', error);
-                showHugoConfigResult('保存失败: ' + error.message, 'danger');
+                showHugoConfigResult((window.getTranslation && window.getTranslation('settings.save.failed') || '保存失败') + ': ' + error.message, 'danger');
             });
         }
 
@@ -395,12 +413,14 @@
                 .then(response => response.text())
                 .then(data => {
                     const resultDiv = document.getElementById('hugoConfigResult');
+                    const previewTitle = window.getTranslation && window.getTranslation('settings.config.preview') || 'Hugo配置文件预览 (config.toml):';
+                    const copyText = window.getTranslation && window.getTranslation('settings.copy.config') || '复制配置';
                     resultDiv.innerHTML = `
                         <div class="alert alert-info">
-                            <h6>Hugo配置文件预览 (config.toml):</h6>
+                            <h6>${previewTitle}</h6>
                             <pre class="bg-dark text-light p-3 rounded" style="font-size: 0.9em; overflow-x: auto;">${data}</pre>
                             <button class="btn btn-sm btn-outline-primary mt-2" onclick="copyToClipboard('${data.replace(/'/g, "\\'")}')">
-                                <i class="bi bi-clipboard"></i> 复制配置
+                                <i class="bi bi-clipboard"></i> ${copyText}
                             </button>
                         </div>
                     `;
@@ -408,7 +428,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showHugoConfigResult('预览失败: ' + error.message, 'danger');
+                    showHugoConfigResult((window.getTranslation && window.getTranslation('settings.preview.failed') || '预览失败') + ': ' + error.message, 'danger');
                 });
         }
 
@@ -427,14 +447,15 @@
         // 复制到剪贴板
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                showHugoConfigResult('配置已复制到剪贴板', 'success');
+                showHugoConfigResult(window.getTranslation && window.getTranslation('settings.config.copied') || '配置已复制到剪贴板', 'success');
             });
         }
 
         // 修复文件名编码
         function repairFilenames() {
             const resultDiv = document.getElementById('repairResult');
-            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> 正在扫描和修复文件名...</div>';
+            const repairingText = window.getTranslation && window.getTranslation('settings.repairing.filenames') || '正在扫描和修复文件名...';
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> ' + repairingText + '</div>';
             resultDiv.style.display = 'block';
 
             fetch('/api/repair-filenames', {
@@ -450,20 +471,25 @@
                     return;
                 }
 
-                let html = '<div class="alert alert-success">' + data.message + '</div>';
+                const successText = window.getTranslation && window.getTranslation('settings.repair.success') || data.message;
+                const repairedFilesText = window.getTranslation && window.getTranslation('settings.repaired.files') || '修复的文件';
+                const noFilesText = window.getTranslation && window.getTranslation('settings.no.files.to.repair') || '没有发现需要修复的文件名。';
+                const failedFilesText = window.getTranslation && window.getTranslation('settings.repair.failed.files') || '修复失败的文件';
+                
+                let html = '<div class="alert alert-success">' + successText + '</div>';
                 
                 if (data.repaired_count > 0) {
-                    html += '<div class="alert alert-info"><h6>修复的文件 (' + data.repaired_count + '个):</h6><ul class="mb-0">';
+                    html += '<div class="alert alert-info"><h6>' + repairedFilesText + ' (' + data.repaired_count + '个):</h6><ul class="mb-0">';
                     data.repaired.forEach(repair => {
                         html += '<li><code>' + repair + '</code></li>';
                     });
                     html += '</ul></div>';
                 } else {
-                    html += '<div class="alert alert-info">没有发现需要修复的文件名。</div>';
+                    html += '<div class="alert alert-info">' + noFilesText + '</div>';
                 }
 
                 if (data.error_count > 0) {
-                    html += '<div class="alert alert-warning"><h6>修复失败的文件 (' + data.error_count + '个):</h6><ul class="mb-0">';
+                    html += '<div class="alert alert-warning"><h6>' + failedFilesText + ' (' + data.error_count + '个):</h6><ul class="mb-0">';
                     data.errors.forEach(error => {
                         html += '<li><code>' + error + '</code></li>';
                     });
@@ -474,8 +500,142 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                resultDiv.innerHTML = '<div class="alert alert-danger">修复失败: ' + error.message + '</div>';
+                const repairFailedText = window.getTranslation && window.getTranslation('settings.repair.failed') || '修复失败';
+                resultDiv.innerHTML = '<div class="alert alert-danger">' + repairFailedText + ': ' + error.message + '</div>';
             });
+        }
+
+        // 检查Hugo安装状态
+        function checkHugoInstallStatus() {
+            fetch('/api/hugo-status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderHugoStatus(data.data);
+                    } else {
+                        showHugoError('Failed to check Hugo status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showHugoError('Error checking Hugo status: ' + error.message);
+                });
+        }
+
+        // 渲染Hugo状态
+        function renderHugoStatus(status) {
+            const container = document.getElementById('hugoStatusContainer');
+            const installedText = window.getTranslation && window.getTranslation('hugo.install.installed') || 'Hugo已安装';
+            const notInstalledText = window.getTranslation && window.getTranslation('hugo.install.not.installed') || 'Hugo未安装';
+            const versionText = window.getTranslation && window.getTranslation('hugo.install.version') || '版本';
+            const installButtonText = window.getTranslation && window.getTranslation('hugo.install.install.button') || '安装Hugo';
+            const locationText = window.getTranslation && window.getTranslation('hugo.install.location') || '安装位置';
+            const platformText = window.getTranslation && window.getTranslation('hugo.install.platform') || '平台';
+            const availableVersionText = window.getTranslation && window.getTranslation('hugo.install.available.version') || '可用版本';
+            
+            if (status.installed) {
+                container.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> ${installedText}</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>${versionText}:</strong> ${status.current_version || 'Unknown'}</p>
+                                <p><strong>${locationText}:</strong> <code>${status.hugo_path}</code></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>${platformText}:</strong> ${status.platform}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <h6><i class="bi bi-exclamation-triangle"></i> ${notInstalledText}</h6>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <p><strong>${availableVersionText}:</strong> ${status.available_version}</p>
+                                <p><strong>${platformText}:</strong> ${status.platform}</p>
+                                <p><strong>${locationText}:</strong> <code>${status.install_dir}</code></p>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary" onclick="installHugo()">
+                                    <i class="bi bi-download"></i> ${installButtonText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 安装Hugo
+        function installHugo() {
+            const resultDiv = document.getElementById('hugoInstallResult');
+            const installingText = window.getTranslation && window.getTranslation('hugo.install.installing') || '正在安装Hugo...';
+            
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <span class="ms-2">${installingText}</span>
+                    </div>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+
+            fetch('/api/install-hugo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const successText = window.getTranslation && window.getTranslation('hugo.install.success') || 'Hugo安装成功！';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle"></i> ${successText}</h6>
+                            <p><strong>${window.getTranslation && window.getTranslation('hugo.install.version') || '版本'}:</strong> ${data.data.version}</p>
+                            <p><strong>${window.getTranslation && window.getTranslation('hugo.install.location') || '安装位置'}:</strong> <code>${data.data.install_dir}</code></p>
+                        </div>
+                    `;
+                    // 重新检查状态
+                    setTimeout(() => {
+                        checkHugoInstallStatus();
+                        resultDiv.style.display = 'none';
+                    }, 2000);
+                } else {
+                    const failedText = window.getTranslation && window.getTranslation('hugo.install.failed') || 'Hugo安装失败';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6><i class="bi bi-x-circle"></i> ${failedText}</h6>
+                            <p>${data.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const failedText = window.getTranslation && window.getTranslation('hugo.install.failed') || 'Hugo安装失败';
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-x-circle"></i> ${failedText}</h6>
+                        <p>Network error: ${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+
+        // 显示Hugo错误
+        function showHugoError(message) {
+            const container = document.getElementById('hugoStatusContainer');
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${message}
+                </div>
+            `;
         }
     </script>
     <script src="/static/js/i18n.js"></script>

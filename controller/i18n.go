@@ -91,6 +91,46 @@ func GetTranslations(c *gin.Context) {
 		"files.title", "files.editor", "files.create", "files.upload", "files.markdown",
 		"files.metadata", "files.title.label", "files.author", "files.type", "files.date",
 		"files.categories", "files.tags", "files.content", "files.preview", "files.split",
+		"files.directory.structure", "files.project", "files.select.directory", "files.loading",
+		"files.new.article", "files.refresh", "files.current.path", "files.empty.directory",
+		"files.modal.new.article", "files.modal.article.title", "files.modal.title.placeholder",
+		"files.modal.save.directory", "files.modal.posts.default", "files.modal.author",
+		"files.modal.author.placeholder", "files.modal.article.type", "files.modal.blog.article",
+		"files.modal.static.page", "files.modal.categories", "files.modal.categories.placeholder",
+		"files.modal.tags", "files.modal.tags.placeholder", "files.modal.cancel", "files.modal.create",
+		"files.load.tree.failed", "files.load.files.failed", "files.create.failed", "files.create.success",
+		"files.filename.generated", "files.title.required",
+		
+		// Settings
+		"settings.title", "settings.project.settings", "settings.hugo.project.path", 
+		"settings.hugo.project.root", "settings.browse", "settings.path.description",
+		"settings.save.settings", "settings.folder.browser.title", "settings.select.hugo.folder",
+		"settings.loading", "settings.current.path", "settings.folder.name", "settings.type", 
+		"settings.actions", "settings.cancel", "settings.select.current.folder", "settings.description",
+		"settings.config.description", "settings.articles.from", "settings.images.to", 
+		"settings.reload.homepage", "settings.hugo.config.title", "settings.hugo.config.description",
+		"settings.site.title", "settings.site.title.placeholder", "settings.base.url",
+		"settings.base.url.placeholder", "settings.language.code", "settings.theme.name",
+		"settings.theme.placeholder", "settings.timezone", "settings.posts.per.page",
+		"settings.site.description", "settings.site.description.placeholder", "settings.author.name",
+		"settings.author.name.placeholder", "settings.author.email", "settings.author.email.placeholder",
+		"settings.build.drafts", "settings.build.future", "settings.save.hugo.config",
+		"settings.reload.config", "settings.preview.config", "settings.filename.repair.title",
+		"settings.filename.repair.description", "settings.repair.filenames", "settings.root.directory",
+		"settings.enter", "settings.select", "settings.empty.directory", "settings.hugo.project",
+		"settings.normal.folder", "settings.error", "settings.load.folder.failed", 
+		"settings.required.fields", "settings.save.failed", "settings.hugo.config.saved",
+		"settings.preview.failed", "settings.config.preview", "settings.copy.config",
+		"settings.config.copied", "settings.repairing.filenames", "settings.repair.success",
+		"settings.repaired.files", "settings.no.files.to.repair", "settings.repair.failed.files",
+		"settings.repair.failed",
+		
+		// Hugo Installation
+		"hugo.install.title", "hugo.install.description", "hugo.install.status", "hugo.install.installed",
+		"hugo.install.not.installed", "hugo.install.version", "hugo.install.install.button", 
+		"hugo.install.installing", "hugo.install.success", "hugo.install.failed", "hugo.install.already.installed",
+		"hugo.install.checking", "hugo.install.download", "hugo.install.extract", "hugo.install.verify",
+		"hugo.install.location", "hugo.install.platform", "hugo.install.available.version",
 		
 		// Messages
 		"msg.save.success", "msg.deploy.success", "msg.build.success", "msg.serve.started",
@@ -201,10 +241,8 @@ func InitializeI18n() gin.HandlerFunc {
 		// 检查Cookie中的语言设置（优先级最高）
 		if cookie, err := c.Cookie("user_language"); err == nil && cookie != "" {
 			userSetCookie, _ := c.Cookie("user_set_language")
-			fmt.Printf("Cookie检测: user_language=%s, user_set_language=%s\n", cookie, userSetCookie)
 			if userSetCookie == "true" {
 				// 用户在Cookie中设置了语言，优先使用
-				fmt.Printf("使用Cookie语言设置: %s\n", cookie)
 				if err := i18nManager.SetLanguage(cookie); err == nil {
 					c.Set("T", i18nManager.T)
 					c.Set("i18n", i18nManager)

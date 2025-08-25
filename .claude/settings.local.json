@@ -16,7 +16,9 @@
       "Bash(./hugo-manager)",
       "Bash(rm:*)",
       "Bash(find:*)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(cat:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

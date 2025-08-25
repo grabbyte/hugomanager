@@ -104,6 +104,10 @@ func Start() {
 	r.POST("/api/set-language", controller.SetLanguage)
 	r.POST("/api/detect-browser-language", controller.DetectBrowserLanguage)
 	r.GET("/api/translations", controller.GetTranslations)
+	
+	// Hugo安装相关路由
+	r.GET("/api/hugo-status", controller.GetHugoStatus)
+	r.POST("/api/install-hugo", controller.InstallHugo)
 
 	// 自动选择可用端口
 	port := findAvailablePort(80)

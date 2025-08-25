@@ -3,3 +3,4 @@
 /go.sum
 /*.fuse_hidden0000028a00000005
 /*.log
+/test-hugo

@@ -61,18 +61,18 @@
             <!-- 左侧目录树 -->
             <div class="col-md-3 sidebar p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">目录结构</h5>
+                    <h5 class="mb-0" data-i18n="files.directory.structure">目录结构</h5>
                     <button class="btn btn-sm btn-outline-primary" onclick="refreshTree()">
                         <i class="bi bi-arrow-clockwise"></i>
                     </button>
                 </div>
                 <div class="alert alert-info small">
-                    <strong>项目：</strong> {{ .HugoProjectPath }}
+                    <strong data-i18n="files.project">项目：</strong> {{ .HugoProjectPath }}
                 </div>
                 <div id="directoryTree">
                     <div class="text-center text-muted">
                         <div class="spinner-border spinner-border-sm" role="status"></div>
-                        <div>加载中...</div>
+                        <div data-i18n="files.loading">加载中...</div>
                     </div>
                 </div>
             </div>
@@ -85,19 +85,19 @@
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">
                                 <i class="bi bi-folder"></i>
-                                <span id="currentPath">请选择目录</span>
+                                <span id="currentPath" data-i18n="files.select.directory">请选择目录</span>
                             </h6>
                             <div>
                                 <button class="btn btn-sm btn-primary me-2" onclick="showNewArticleModal()">
-                                    <i class="bi bi-file-earmark-plus"></i> 新建文章
+                                    <i class="bi bi-file-earmark-plus"></i> <span data-i18n="files.new.article">新建文章</span>
                                 </button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="refreshFiles()">
-                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                    <i class="bi bi-arrow-clockwise"></i> <span data-i18n="files.refresh">刷新</span>
                                 </button>
                             </div>
                         </div>
                         <div class="card-body file-list" id="fileList">
-                            <div class="text-center text-muted">请在左侧选择一个目录</div>
+                            <div class="text-center text-muted" data-i18n="files.current.path">请在左侧选择一个目录</div>
                         </div>
                     </div>
 
@@ -111,47 +111,47 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">新建文章</h5>
+                    <h5 class="modal-title" data-i18n="files.modal.new.article">新建文章</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="newArticleForm">
                         <div class="mb-3">
-                            <label class="form-label">文章标题 *</label>
-                            <input type="text" class="form-control" id="newTitle" required placeholder="例如：C语言简单介绍">
-                            <div class="form-text">将自动生成文件名，如：2022-01-19-c语言简单介绍.md</div>
+                            <label class="form-label" data-i18n="files.modal.article.title">文章标题 *</label>
+                            <input type="text" class="form-control" id="newTitle" required data-i18n-placeholder="files.modal.title.placeholder" placeholder="例如：C语言简单介绍">
+                            <div class="form-text" data-i18n="files.filename.generated">将自动生成文件名，如：2022-01-19-c语言简单介绍.md</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">保存目录</label>
+                            <label class="form-label" data-i18n="files.modal.save.directory">保存目录</label>
                             <select class="form-select" id="newDirectory">
-                                <option value="posts">posts (默认)</option>
+                                <option value="posts" data-i18n="files.modal.posts.default">posts (默认)</option>
                             </select>
                             <div class="form-text">选择文章保存的目录</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">作者</label>
-                            <input type="text" class="form-control" id="newAuthor" placeholder="作者姓名">
+                            <label class="form-label" data-i18n="files.modal.author">作者</label>
+                            <input type="text" class="form-control" id="newAuthor" data-i18n-placeholder="files.modal.author.placeholder" placeholder="作者姓名">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">文章类型</label>
+                            <label class="form-label" data-i18n="files.modal.article.type">文章类型</label>
                             <select class="form-select" id="newType">
-                                <option value="post">post (博客文章)</option>
-                                <option value="page">page (静态页面)</option>
+                                <option value="post" data-i18n="files.modal.blog.article">post (博客文章)</option>
+                                <option value="page" data-i18n="files.modal.static.page">page (静态页面)</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">分类 (可选)</label>
-                            <input type="text" class="form-control" id="newCategories" placeholder="用逗号分隔，如：技术,编程">
+                            <label class="form-label" data-i18n="files.modal.categories">分类 (可选)</label>
+                            <input type="text" class="form-control" id="newCategories" data-i18n-placeholder="files.modal.categories.placeholder" placeholder="用逗号分隔，如：技术,编程">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">标签 (可选)</label>
-                            <input type="text" class="form-control" id="newTags" placeholder="用逗号分隔，如：C语言,教程,入门">
+                            <label class="form-label" data-i18n="files.modal.tags">标签 (可选)</label>
+                            <input type="text" class="form-control" id="newTags" data-i18n-placeholder="files.modal.tags.placeholder" placeholder="用逗号分隔，如：C语言,教程,入门">
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="createNewArticle()">创建文章</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="files.modal.cancel">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createNewArticle()" data-i18n="files.modal.create">创建文章</button>
                 </div>
             </div>
         </div>
@@ -182,7 +182,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('directoryTree').innerHTML = 
-                        '<div class="alert alert-danger">加载目录树失败</div>';
+                        '<div class="alert alert-danger">' + (window.getTranslation && window.getTranslation('files.load.tree.failed') || '加载目录树失败') + '</div>';
                 });
         }
 
@@ -247,7 +247,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('fileList').innerHTML = 
-                        '<div class="alert alert-danger">加载文件列表失败</div>';
+                        '<div class="alert alert-danger">' + (window.getTranslation && window.getTranslation('files.load.files.failed') || '加载文件列表失败') + '</div>';
                 });
         }
 
@@ -256,7 +256,7 @@
             const fileList = document.getElementById('fileList');
             
             if (files.length === 0) {
-                fileList.innerHTML = '<div class="text-center text-muted">此目录为空</div>';
+                fileList.innerHTML = '<div class="text-center text-muted">' + (window.getTranslation && window.getTranslation('files.empty.directory') || '此目录为空') + '</div>';
                 return;
             }
 
@@ -381,7 +381,7 @@
             const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(s => s) : [];
 
             if (!title) {
-                alert('请输入文章标题');
+                alert(window.getTranslation && window.getTranslation('files.title.required') || '请输入文章标题');
                 return;
             }
 
@@ -404,7 +404,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    alert('创建失败: ' + data.error);
+                    alert((window.getTranslation && window.getTranslation('files.create.failed') || '创建失败') + ': ' + data.error);
                     return;
                 }
 
@@ -416,7 +416,7 @@
                 document.getElementById('newArticleForm').reset();
                 
                 // 显示成功消息
-                alert('文章创建成功！文件名：' + data.filename);
+                alert((window.getTranslation && window.getTranslation('files.create.success') || '文章创建成功！文件名：') + data.filename);
                 
                 // 刷新文件列表
                 if (currentSelectedPath !== null) {
@@ -434,7 +434,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('创建失败');
+                alert(window.getTranslation && window.getTranslation('files.create.failed') || '创建失败');
             });
         }
 
