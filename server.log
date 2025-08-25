@@ -1,0 +1,98 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] Loaded HTML Templates (18): 
+	- footer
+	- header
+	- index.html
+	- manager.html
+	- home/index.html
+	- base
+	- settings/index.html
+	- 
+	- files/editor.html
+	- files/manager.html
+	- base.html
+	- footer.html
+	- header.html
+	- editor.html
+	- article/editor.html
+	- deploy/index.html
+	- images/index.html
+	- trash/index.html
+
+[GIN-debug] GET    /static/*filepath         --> hugo-manager-go/controller.ServeStaticFile (4 handlers)
+[GIN-debug] GET    /                         --> hugo-manager-go/controller.Home (4 handlers)
+[GIN-debug] POST   /upload                   --> hugo-manager-go/controller.UploadImage (4 handlers)
+[GIN-debug] GET    /article/edit             --> hugo-manager-go/controller.EditArticle (4 handlers)
+[GIN-debug] POST   /article/save             --> hugo-manager-go/controller.SaveArticle (4 handlers)
+[GIN-debug] GET    /settings                 --> hugo-manager-go/controller.Settings (4 handlers)
+[GIN-debug] POST   /settings/update          --> hugo-manager-go/controller.UpdateSettings (4 handlers)
+[GIN-debug] GET    /api/browse-folders       --> hugo-manager-go/controller.BrowseFolders (4 handlers)
+[GIN-debug] GET    /api/hugo-config          --> hugo-manager-go/controller.GetHugoConfig (4 handlers)
+[GIN-debug] POST   /api/hugo-config          --> hugo-manager-go/controller.SaveHugoConfig (4 handlers)
+[GIN-debug] GET    /api/hugo-config/preview  --> hugo-manager-go/controller.PreviewHugoConfig (4 handlers)
+[GIN-debug] GET    /deploy                   --> hugo-manager-go/controller.DeployManager (4 handlers)
+[GIN-debug] GET    /api/ssh-config           --> hugo-manager-go/controller.GetSSHConfig (4 handlers)
+[GIN-debug] POST   /api/ssh-config           --> hugo-manager-go/controller.UpdateSSHConfig (4 handlers)
+[GIN-debug] POST   /api/ssh-config-encrypted --> hugo-manager-go/controller.UpdateSSHConfigWithEncryption (4 handlers)
+[GIN-debug] POST   /api/set-decryption-key   --> hugo-manager-go/controller.SetDecryptionKey (4 handlers)
+[GIN-debug] GET    /api/check-decryption-status --> hugo-manager-go/controller.CheckDecryptionStatus (4 handlers)
+[GIN-debug] POST   /api/encrypt-credentials  --> hugo-manager-go/controller.EncryptPlaintextCredentials (4 handlers)
+[GIN-debug] POST   /api/update-master-password --> hugo-manager-go/controller.UpdateMasterPassword (4 handlers)
+[GIN-debug] POST   /api/test-ssh             --> hugo-manager-go/controller.TestSSHConnection (4 handlers)
+[GIN-debug] POST   /api/build-hugo           --> hugo-manager-go/controller.BuildHugo (4 handlers)
+[GIN-debug] POST   /api/deploy               --> hugo-manager-go/controller.DeployToServer (4 handlers)
+[GIN-debug] POST   /api/incremental-deploy   --> hugo-manager-go/controller.IncrementalDeployToServer (4 handlers)
+[GIN-debug] POST   /api/build-and-deploy     --> hugo-manager-go/controller.BuildAndDeploy (4 handlers)
+[GIN-debug] POST   /api/incremental-build-and-deploy --> hugo-manager-go/controller.IncrementalBuildAndDeploy (4 handlers)
+[GIN-debug] POST   /api/pause-deployment     --> hugo-manager-go/controller.PauseDeployment (4 handlers)
+[GIN-debug] POST   /api/resume-deployment    --> hugo-manager-go/controller.ResumeDeployment (4 handlers)
+[GIN-debug] GET    /api/deployment-status    --> hugo-manager-go/controller.GetDeploymentStatus (4 handlers)
+[GIN-debug] POST   /api/hugo-serve/start     --> hugo-manager-go/controller.StartHugoServe (4 handlers)
+[GIN-debug] POST   /api/hugo-serve/stop      --> hugo-manager-go/controller.StopHugoServe (4 handlers)
+[GIN-debug] POST   /api/hugo-serve/restart   --> hugo-manager-go/controller.RestartHugoServe (4 handlers)
+[GIN-debug] GET    /api/hugo-serve/status    --> hugo-manager-go/controller.GetHugoServeStatus (4 handlers)
+[GIN-debug] GET    /ws/progress              --> hugo-manager-go/router.Start.WrapH.func3 (4 handlers)
+[GIN-debug] GET    /images                   --> hugo-manager-go/controller.ImageManager (4 handlers)
+[GIN-debug] GET    /api/images               --> hugo-manager-go/controller.GetImages (4 handlers)
+[GIN-debug] POST   /api/delete-image         --> hugo-manager-go/controller.DeleteImage (4 handlers)
+[GIN-debug] POST   /api/delete-images        --> hugo-manager-go/controller.DeleteImages (4 handlers)
+[GIN-debug] POST   /api/create-image-folder  --> hugo-manager-go/controller.CreateImageFolder (4 handlers)
+[GIN-debug] GET    /api/image-directories    --> hugo-manager-go/controller.GetImageDirectories (4 handlers)
+[GIN-debug] GET    /api/image-stats          --> hugo-manager-go/controller.GetImageStats (4 handlers)
+[GIN-debug] GET    /trash                    --> hugo-manager-go/controller.TrashManager (4 handlers)
+[GIN-debug] GET    /api/trash                --> hugo-manager-go/controller.GetTrashItems (4 handlers)
+[GIN-debug] POST   /api/delete-article       --> hugo-manager-go/controller.DeleteArticle (4 handlers)
+[GIN-debug] POST   /api/restore-from-trash   --> hugo-manager-go/controller.RestoreFromTrash (4 handlers)
+[GIN-debug] POST   /api/permanent-delete     --> hugo-manager-go/controller.PermanentDelete (4 handlers)
+[GIN-debug] POST   /api/empty-trash          --> hugo-manager-go/controller.EmptyTrash (4 handlers)
+[GIN-debug] GET    /files                    --> hugo-manager-go/controller.FileManager (4 handlers)
+[GIN-debug] GET    /files/edit               --> hugo-manager-go/controller.FileEditor (4 handlers)
+[GIN-debug] GET    /api/directory-tree       --> hugo-manager-go/controller.GetDirectoryTree (4 handlers)
+[GIN-debug] GET    /api/files                --> hugo-manager-go/controller.GetFiles (4 handlers)
+[GIN-debug] GET    /api/file-content         --> hugo-manager-go/controller.GetFileContent (4 handlers)
+[GIN-debug] POST   /api/save-file            --> hugo-manager-go/controller.SaveFileContent (4 handlers)
+[GIN-debug] POST   /api/upload-image         --> hugo-manager-go/controller.UploadImageFile (4 handlers)
+[GIN-debug] POST   /api/upload-image-base64  --> hugo-manager-go/controller.UploadImageBase64 (4 handlers)
+[GIN-debug] POST   /api/create-article       --> hugo-manager-go/controller.CreateNewArticle (4 handlers)
+[GIN-debug] POST   /api/repair-filenames     --> hugo-manager-go/controller.RepairFilenames (4 handlers)
+[GIN-debug] GET    /api/debug-path           --> hugo-manager-go/controller.DebugPath (4 handlers)
+[GIN-debug] GET    /api/languages            --> hugo-manager-go/controller.GetLanguages (4 handlers)
+[GIN-debug] POST   /api/set-language         --> hugo-manager-go/controller.SetLanguage (4 handlers)
+[GIN-debug] POST   /api/detect-browser-language --> hugo-manager-go/controller.DetectBrowserLanguage (4 handlers)
+[GIN-debug] GET    /api/translations         --> hugo-manager-go/controller.GetTranslations (4 handlers)
+Hugo Manager 正在启动，访问地址: http://localhost:8082
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8082
+正在打开默认浏览器...
+[GIN] 2025/08/25 - 14:28:22 | 200 |     64.6973ms |       127.0.0.1 | GET      "/"
+[GIN] 2025/08/25 - 14:28:22 | 200 |   28.640109ms |       127.0.0.1 | GET      "/static/js/i18n.js"
+[GIN] 2025/08/25 - 14:28:22 | 404 |   12.950437ms |       127.0.0.1 | GET      "/favicon.ico"
+[GIN] 2025/08/25 - 14:28:22 | 200 |   24.445733ms |       127.0.0.1 | GET      "/api/translations"
+[GIN] 2025/08/25 - 14:28:57 | 200 |   12.118576ms |             ::1 | GET      "/api/translations"
+[GIN] 2025/08/25 - 14:30:10 | 200 |   54.713998ms |             ::1 | GET      "/"

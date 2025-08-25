@@ -51,14 +51,14 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8">
-                    <h1 class="display-4 fw-bold mb-3">Hugo 博客管理器</h1>
-                    <p class="lead mb-4">简单、高效的Hugo静态博客管理工具</p>
+                    <h1 class="display-4 fw-bold mb-3" data-i18n="home.title">Hugo 博客管理器</h1>
+                    <p class="lead mb-4" data-i18n="home.subtitle">简单、高效的Hugo静态博客管理工具</p>
                     <div class="d-flex gap-3 flex-wrap">
                         <button class="btn btn-light btn-lg" onclick="createNewArticle()">
-                            <i class="bi bi-plus-circle"></i> 新建文章
+                            <i class="bi bi-plus-circle"></i> <span data-i18n="home.new.article">新建文章</span>
                         </button>
                         <button class="btn btn-outline-light btn-lg" onclick="location.href='/files'">
-                            <i class="bi bi-folder-open"></i> 管理文件
+                            <i class="bi bi-folder-open"></i> <span data-i18n="home.manage.files">管理文件</span>
                         </button>
                     </div>
                 </div>
@@ -66,7 +66,7 @@
                     <div class="card stats-card text-center">
                         <div class="card-body">
                             <h2 class="card-title" id="articleCount">{{ len .Articles }}</h2>
-                            <p class="card-text">篇文章</p>
+                            <p class="card-text" data-i18n="home.articles.count">篇文章</p>
                         </div>
                     </div>
                 </div>
@@ -78,15 +78,15 @@
         <!-- 搜索区域 -->
         <div class="search-section">
             <h5 class="mb-3">
-                <i class="bi bi-search"></i> 搜索文章
+                <i class="bi bi-search"></i> <span data-i18n="home.search.articles">搜索文章</span>
             </h5>
             <div class="row">
                 <div class="col-md-8">
-                    <input type="text" class="form-control" id="searchInput" placeholder="输入关键词搜索文章标题、内容..." onkeyup="performSearch()">
+                    <input type="text" class="form-control" id="searchInput" data-i18n-placeholder="home.search.placeholder" placeholder="输入关键词搜索文章标题、内容..." onkeyup="performSearch()">
                 </div>
                 <div class="col-md-4 mt-2 mt-md-0">
                     <button class="btn btn-primary w-100" onclick="performSearch()">
-                        <i class="bi bi-search"></i> 搜索
+                        <i class="bi bi-search"></i> <span data-i18n="home.search.button">搜索</span>
                     </button>
                 </div>
             </div>
@@ -98,8 +98,8 @@
                 <div class="card feature-card h-100 text-center" onclick="createNewArticle()">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-file-earmark-plus fs-1 text-primary mb-3"></i>
-                        <h5 class="card-title">新建博客</h5>
-                        <p class="card-text flex-grow-1">快速创建新的博客文章</p>
+                        <h5 class="card-title" data-i18n="home.card.new.blog">新建博客</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.new.blog.desc">快速创建新的博客文章</p>
                     </div>
                 </div>
             </div>
@@ -107,8 +107,8 @@
                 <div class="card feature-card h-100 text-center" onclick="location.href='/files'">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-folder2-open fs-1 text-info mb-3"></i>
-                        <h5 class="card-title">文件管理</h5>
-                        <p class="card-text flex-grow-1">浏览和编辑所有文件</p>
+                        <h5 class="card-title" data-i18n="home.card.file.management">文件管理</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.file.management.desc">浏览和编辑所有文件</p>
                     </div>
                 </div>
             </div>
@@ -116,8 +116,8 @@
                 <div class="card feature-card h-100 text-center" onclick="location.href='/images'">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-folder2-open fs-1 text-success mb-3"></i>
-                        <h5 class="card-title">静态文件</h5>
-                        <p class="card-text flex-grow-1">管理Hugo项目的静态文件资源</p>
+                        <h5 class="card-title" data-i18n="home.card.static.files">静态文件</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.static.files.desc">管理Hugo项目的静态文件资源</p>
                     </div>
                 </div>
             </div>
@@ -125,8 +125,8 @@
                 <div class="card feature-card h-100 text-center" onclick="location.href='/deploy'">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-cloud-upload fs-1 text-danger mb-3"></i>
-                        <h5 class="card-title">部署管理</h5>
-                        <p class="card-text flex-grow-1">构建和部署到服务器</p>
+                        <h5 class="card-title" data-i18n="home.card.deploy">部署管理</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.deploy.desc">构建和部署到服务器</p>
                     </div>
                 </div>
             </div>
@@ -134,8 +134,8 @@
                 <div class="card feature-card h-100 text-center" onclick="location.href='/trash'">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-trash fs-1 text-warning mb-3"></i>
-                        <h5 class="card-title">回收站</h5>
-                        <p class="card-text flex-grow-1">查看已删除的文章</p>
+                        <h5 class="card-title" data-i18n="home.card.trash">回收站</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.trash.desc">查看已删除的文章</p>
                     </div>
                 </div>
             </div>
@@ -143,8 +143,8 @@
                 <div class="card feature-card h-100 text-center" onclick="location.href='/settings'">
                     <div class="card-body d-flex flex-column">
                         <i class="bi bi-gear fs-1 text-secondary mb-3"></i>
-                        <h5 class="card-title">系统设置</h5>
-                        <p class="card-text flex-grow-1">配置系统参数</p>
+                        <h5 class="card-title" data-i18n="home.card.settings">系统设置</h5>
+                        <p class="card-text flex-grow-1" data-i18n="home.card.settings.desc">配置系统参数</p>
                     </div>
                 </div>
             </div>
@@ -156,12 +156,12 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="bi bi-clock-history"></i> 最近文章
+                            <i class="bi bi-clock-history"></i> <span data-i18n="home.recent.articles">最近文章</span>
                         </h5>
                         <div>
                             <span class="text-muted" id="searchResultInfo"></span>
                             <button class="btn btn-sm btn-outline-primary ms-2" onclick="refreshArticles()">
-                                <i class="bi bi-arrow-clockwise"></i> 刷新
+                                <i class="bi bi-arrow-clockwise"></i> <span data-i18n="home.refresh">刷新</span>
                             </button>
                         </div>
                     </div>
@@ -178,12 +178,12 @@
                                             </h6>
                                             <small class="text-muted">
                                                 <i class="bi bi-folder me-1"></i>
-                                                根目录
+                                                <span data-i18n="home.root.directory">根目录</span>
                                             </small>
                                         </div>
                                         <div class="text-end">
                                             <button class="btn btn-sm btn-outline-primary me-1" data-article="{{ $article }}" onclick="event.stopPropagation(); handleEditArticle(this)">
-                                                <i class="bi bi-pencil"></i> 编辑
+                                                <i class="bi bi-pencil"></i> <span data-i18n="home.edit">编辑</span>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger" data-article="{{ $article }}" onclick="event.stopPropagation(); handleDeleteArticle(this)">
                                                 <i class="bi bi-trash"></i>
@@ -195,10 +195,10 @@
                             {{ else }}
                                 <div class="text-center py-5">
                                     <i class="bi bi-file-earmark-x fs-1 text-muted mb-3"></i>
-                                    <h5 class="text-muted">暂无文章</h5>
-                                    <p class="text-muted">点击上方"新建文章"按钮开始创作吧！</p>
+                                    <h5 class="text-muted" data-i18n="home.no.articles">暂无文章</h5>
+                                    <p class="text-muted" data-i18n="home.no.articles.hint">点击上方"新建文章"按钮开始创作吧！</p>
                                     <button class="btn btn-primary" onclick="createNewArticle()">
-                                        <i class="bi bi-plus-circle"></i> 立即创建
+                                        <i class="bi bi-plus-circle"></i> <span data-i18n="home.create.now">立即创建</span>
                                     </button>
                                 </div>
                             {{ end }}
@@ -213,7 +213,7 @@
             <div class="col-12">
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>当前Hugo项目：</strong> {{ .HugoProjectPath }}
+                    <strong data-i18n="home.current.hugo.project">当前Hugo项目：</strong> {{ .HugoProjectPath }}
                 </div>
             </div>
         </div>
@@ -225,35 +225,35 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-file-earmark-plus"></i> 新建文章
+                        <i class="bi bi-file-earmark-plus"></i> <span data-i18n="home.modal.new.article">新建文章</span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="quickNewArticleForm">
                         <div class="mb-3">
-                            <label class="form-label">文章标题 *</label>
-                            <input type="text" class="form-control" id="quickTitle" required placeholder="例如：我的第一篇博客">
+                            <label class="form-label" data-i18n="home.modal.article.title">文章标题 *</label>
+                            <input type="text" class="form-control" id="quickTitle" required data-i18n-placeholder="home.modal.title.placeholder" placeholder="例如：我的第一篇博客">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">保存目录</label>
+                            <label class="form-label" data-i18n="home.modal.save.directory">保存目录</label>
                             <select class="form-select" id="quickDirectory">
-                                <option value="posts">posts (默认)</option>
+                                <option value="posts" data-i18n="home.modal.posts.default">posts (默认)</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">文章类型</label>
+                            <label class="form-label" data-i18n="home.modal.article.type">文章类型</label>
                             <select class="form-select" id="quickType">
-                                <option value="post">博客文章</option>
-                                <option value="page">静态页面</option>
+                                <option value="post" data-i18n="home.modal.blog.article">博客文章</option>
+                                <option value="page" data-i18n="home.modal.static.page">静态页面</option>
                             </select>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="home.modal.cancel">取消</button>
                     <button type="button" class="btn btn-primary" onclick="createQuickArticle()">
-                        <i class="bi bi-plus-circle"></i> 创建并编辑
+                        <i class="bi bi-plus-circle"></i> <span data-i18n="home.modal.create.and.edit">创建并编辑</span>
                     </button>
                 </div>
             </div>
@@ -262,7 +262,7 @@
 
     <footer class="text-center mt-5 py-4 bg-light">
         <div class="container">
-            <p class="text-muted mb-0">Hugo Manager © 2025 - 让博客写作更简单</p>
+            <p class="text-muted mb-0" data-i18n="home.footer.copyright">Hugo Manager © 2025 - 让博客写作更简单</p>
         </div>
     </footer>
 
@@ -305,8 +305,8 @@
                 articlesList.innerHTML = `
                     <div class="text-center py-5">
                         <i class="bi bi-search fs-1 text-muted mb-3"></i>
-                        <h5 class="text-muted">未找到匹配的文章</h5>
-                        <p class="text-muted">尝试使用不同的关键词进行搜索</p>
+                        <h5 class="text-muted">${getTranslation('home.search.no.results', '未找到匹配的文章')}</h5>
+                        <p class="text-muted">${getTranslation('home.search.try.different', '尝试使用不同的关键词进行搜索')}</p>
                     </div>
                 `;
                 return;
@@ -314,7 +314,7 @@
 
             let html = '';
             currentSearchResults.forEach(article => {
-                const directory = article.includes('/') ? article.split('/')[0] : '根目录';
+                const directory = article.includes('/') ? article.split('/')[0] : getTranslation('home.root.directory', '根目录');
                 html += `
                     <div class="article-item p-3 border-bottom" data-article="${article}" onclick="handleEditArticle(this)">
                         <div class="d-flex justify-content-between align-items-start">
@@ -330,7 +330,7 @@
                             </div>
                             <div class="text-end">
                                 <button class="btn btn-sm btn-outline-primary me-1" data-article="${article}" onclick="handleEditArticle(this)">
-                                    <i class="bi bi-pencil"></i> 编辑
+                                    <i class="bi bi-pencil"></i> ${getTranslation('home.edit', '编辑')}
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" data-article="${article}" onclick="event.stopPropagation(); handleDeleteArticle(this)">
                                     <i class="bi bi-trash"></i>
@@ -350,9 +350,9 @@
             const searchTerm = document.getElementById('searchInput').value.trim();
             
             if (searchTerm === '') {
-                info.textContent = `共 ${allArticles.length} 篇文章`;
+                info.textContent = getTranslation('home.articles.total', `共 ${allArticles.length} 篇文章`).replace('{count}', allArticles.length);
             } else {
-                info.textContent = `找到 ${currentSearchResults.length} 篇相关文章`;
+                info.textContent = getTranslation('home.search.found', `找到 ${currentSearchResults.length} 篇相关文章`).replace('{count}', currentSearchResults.length);
             }
         }
         function handleEditArticle(elem) {
@@ -372,7 +372,7 @@
 
         // 删除文章
         function deleteArticle(articlePath) {
-            if (confirm('确定要删除这篇文章吗？文章将移至回收站。\n\n' + articlePath)) {
+            if (confirm(getTranslation('home.delete.confirm', '确定要删除这篇文章吗？文章将移至回收站。') + '\n\n' + articlePath)) {
                 fetch('/api/delete-article', {
                     method: 'POST',
                     headers: {
@@ -385,16 +385,16 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        alert('删除失败: ' + data.error);
+                        alert(getTranslation('home.delete.failed', '删除失败') + ': ' + data.error);
                         return;
                     }
                     
-                    alert('文章已移至回收站');
+                    alert(getTranslation('home.delete.success', '文章已移至回收站'));
                     refreshArticles();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('删除失败: ' + error.message);
+                    alert(getTranslation('home.delete.error', '删除失败') + ': ' + error.message);
                 });
             }
         }
@@ -416,7 +416,7 @@
             const type = document.getElementById('quickType').value;
 
             if (!title) {
-                alert('请输入文章标题');
+                alert(getTranslation('home.modal.title.required', '请输入文章标题'));
                 return;
             }
 
@@ -439,7 +439,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    alert('创建失败: ' + data.error);
+                    alert(getTranslation('home.modal.create.failed', '创建失败') + ': ' + data.error);
                     return;
                 }
 
@@ -460,7 +460,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('创建失败');
+                alert(getTranslation('home.modal.create.error', '创建失败'));
             });
         }
 
@@ -475,7 +475,7 @@
                     if (data.error) return;
                     
                     // 清空现有选项
-                    select.innerHTML = '<option value="posts">posts (默认)</option>';
+                    select.innerHTML = `<option value="posts">${getTranslation('home.modal.posts.default', 'posts (默认)')}</option>`;
                     
                     // 递归添加目录选项
                     addDirectoryOptions(select, data, '');

@@ -14,7 +14,9 @@
       "Bash(go build:*)",
       "Bash(pkill:*)",
       "Bash(./hugo-manager)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": []
   }

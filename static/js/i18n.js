@@ -12,9 +12,31 @@ const languageNames = {
     'ru-RU': 'Русский'
 };
 
+// Cookie操作函数
+function setCookie(name, value, days = 365) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        let cookie = cookies[i];
+        while (cookie.charAt(0) === ' ') cookie = cookie.substring(1, cookie.length);
+        if (cookie.indexOf(nameEQ) === 0) return cookie.substring(nameEQ.length, cookie.length);
+    }
+    return null;
+}
+
 // 切换语言函数 - 立即定义并暴露
 window.changeLanguage = async function(langCode) {
     try {
+        // 保存语言选择到cookie
+        setCookie('user_language', langCode);
+        setCookie('user_set_language', 'true');
+        
         const response = await fetch('/api/set-language', {
             method: 'POST',
             headers: {
@@ -42,6 +64,10 @@ window.changeLanguage = async function(langCode) {
         
         window.currentTranslations = translationsData.translations || {};
         
+        // 调试信息
+        console.log('翻译数据加载成功:', window.currentTranslations);
+        console.log('当前语言:', langCode);
+        
         // 更新当前语言显示
         updateCurrentLanguageDisplay(langCode);
         
@@ -66,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 初始化国际化
 async function initializeI18n() {
     try {
-        // 获取当前语言和翻译
+        // 获取当前语言和翻译（后端中间件已经处理了Cookie优先级）
         const response = await fetch('/api/translations');
         const data = await response.json();
         
@@ -78,14 +104,20 @@ async function initializeI18n() {
         window.currentTranslations = data.translations || {};
         const currentLanguage = data.language || 'en-US';
         
+        console.log('当前使用的语言:', currentLanguage);
+        console.log('用户是否手动设置:', data.user_set);
+        
         // 更新当前语言显示
         updateCurrentLanguageDisplay(currentLanguage);
         
         // 更新页面文本
         updatePageText();
         
-        // 检测浏览器语言（仅在用户未主动设置语言时）
-        if (!data.user_set) {
+        // 检测浏览器语言（仅在用户未主动设置语言且Cookie中也没有设置时）
+        const cookieLanguage = getCookie('user_language');
+        const userSetLanguage = getCookie('user_set_language') === 'true';
+        
+        if (!userSetLanguage && !data.user_set && !cookieLanguage) {
             detectBrowserLanguage();
         }
     } catch (error) {
