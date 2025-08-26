@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"html/template"
 	"hugo-manager-go/controller"
 	"hugo-manager-go/utils"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,139 @@ func Start() {
 	r := gin.Default()
 	// 移除固定的静态文件路由，使用动态路由
 	// r.Static("/static", "./static")
+
+	// 添加模板函数
+	r.SetFuncMap(template.FuncMap{
+		"formatFileSize": func(bytes int64) string {
+			if bytes == 0 {
+				return "0 B"
+			}
+			const unit = 1024
+			if bytes < unit {
+				return fmt.Sprintf("%d B", bytes)
+			}
+			div, exp := int64(unit), 0
+			for n := bytes / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+		},
+		"formatBytes": func(bytes int64) string {
+			if bytes == 0 {
+				return "0 B"
+			}
+			const unit = 1024
+			if bytes < unit {
+				return fmt.Sprintf("%d B", bytes)
+			}
+			div, exp := int64(unit), 0
+			for n := bytes / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+		},
+		"add": func(a, b int) int {
+			return a + b
+		},
+		"sub": func(a, b int) int {
+			return a - b
+		},
+		"mul": func(a, b int) int {
+			return a * b
+		},
+		"gt": func(a, b int) bool {
+			return a > b
+		},
+		"lt": func(a, b int) bool {
+			return a < b
+		},
+		"eq": func(a, b interface{}) bool {
+			return a == b
+		},
+		"ne": func(a, b interface{}) bool {
+			return a != b
+		},
+		"contains": func(s, substr string) bool {
+			return strings.Contains(s, substr)
+		},
+		"split": func(s, sep string) []string {
+			return strings.Split(s, sep)
+		},
+		"index": func(slice []string, i int) string {
+			if i < 0 || i >= len(slice) {
+				return ""
+			}
+			return slice[i]
+		},
+		"len": func(v interface{}) int {
+			switch val := v.(type) {
+			case []interface{}:
+				return len(val)
+			case map[string]interface{}:
+				return len(val)
+			case string:
+				return len(val)
+			default:
+				return 0
+			}
+		},
+		"buildPageURL": func(page int, year string, month string) string {
+			url := fmt.Sprintf("/articles?page=%d", page)
+			if year != "" {
+				url += "&year=" + year
+			}
+			if month != "" {
+				url += "&month=" + month
+			}
+			return url
+		},
+		"seq": func(start, end int) []int {
+			if start > end {
+				return nil
+			}
+			result := make([]int, end-start+1)
+			for i := range result {
+				result[i] = start + i
+			}
+			return result
+		},
+		"hasServerStatus": func(m map[string]interface{}, key string) bool {
+			if m == nil {
+				return false
+			}
+			_, exists := m[key]
+			return exists
+		},
+		"getServerStatus": func(m map[string]interface{}, key string) interface{} {
+			if m == nil {
+				// 返回默认状态
+				return map[string]interface{}{
+					"Status": "idle",
+					"Message": "等待初始化",
+					"Progress": 0,
+					"FilesDeployed": 0,
+					"BytesTransferred": int64(0),
+					"Speed": "",
+				}
+			}
+			value, exists := m[key]
+			if !exists {
+				// 返回默认状态
+				return map[string]interface{}{
+					"Status": "idle", 
+					"Message": "等待初始化",
+					"Progress": 0,
+					"FilesDeployed": 0,
+					"BytesTransferred": int64(0),
+					"Speed": "",
+				}
+			}
+			return value
+		},
+	})
+
 	r.LoadHTMLGlob("view/**/*.html")
 
 	// 启动WebSocket管理器
@@ -32,6 +167,7 @@ func Start() {
 
 	r.GET("/", controller.Home)
 	r.POST("/upload", controller.UploadImage)
+	r.GET("/articles", controller.ArticleList)
 	r.GET("/article/edit", controller.EditArticle)
 	r.POST("/article/save", controller.SaveArticle)
 	r.GET("/settings", controller.Settings)
@@ -43,7 +179,7 @@ func Start() {
 	r.POST("/api/hugo-config", controller.SaveHugoConfig)
 	r.GET("/api/hugo-config/preview", controller.PreviewHugoConfig)
 
-	// 部署管理相关路由
+	// 部署管理相关路由（单服务器，保持兼容）
 	r.GET("/deploy", controller.DeployManager)
 	r.GET("/api/ssh-config", controller.GetSSHConfig)
 	r.POST("/api/ssh-config", controller.UpdateSSHConfig)
@@ -61,13 +197,29 @@ func Start() {
 	r.POST("/api/pause-deployment", controller.PauseDeployment)
 	r.POST("/api/resume-deployment", controller.ResumeDeployment)
 	r.GET("/api/deployment-status", controller.GetDeploymentStatus)
-	
+
+	// 多服务器部署相关路由
+	r.GET("/api/multi-deploy/servers", controller.GetMultiServerConfigs)
+	r.GET("/api/multi-deploy/server/:server_id", controller.GetMultiServerConfig)
+	r.POST("/api/multi-deploy/server", controller.AddMultiServerConfig)
+	r.PUT("/api/multi-deploy/server/:server_id", controller.UpdateMultiServerConfig)
+	r.DELETE("/api/multi-deploy/server/:server_id", controller.DeleteMultiServerConfig)
+	r.POST("/api/multi-deploy/test/:server_id", controller.TestMultiServerConnection)
+	r.POST("/api/multi-deploy/deploy/:server_id", controller.DeployToMultiServer)
+	r.POST("/api/multi-deploy/incremental-deploy/:server_id", controller.IncrementalDeployToMultiServer)
+	r.POST("/api/multi-deploy/build-deploy/:server_id", controller.BuildAndDeployToMultiServer)
+	r.POST("/api/multi-deploy/incremental-build-deploy/:server_id", controller.IncrementalBuildAndDeployToMultiServer)
+	r.POST("/api/multi-deploy/pause/:server_id", controller.PauseMultiServerDeployment)
+	r.POST("/api/multi-deploy/resume/:server_id", controller.ResumeMultiServerDeployment)
+	r.POST("/api/multi-deploy/stop/:server_id", controller.StopMultiServerDeployment)
+	r.GET("/api/multi-deploy/statuses", controller.GetMultiServerStatuses)
+
 	// Hugo serve相关路由
 	r.POST("/api/hugo-serve/start", controller.StartHugoServe)
 	r.POST("/api/hugo-serve/stop", controller.StopHugoServe)
 	r.POST("/api/hugo-serve/restart", controller.RestartHugoServe)
 	r.GET("/api/hugo-serve/status", controller.GetHugoServeStatus)
-	
+
 	// WebSocket进度监控路由
 	r.GET("/ws/progress", gin.WrapH(http.HandlerFunc(utils.HandleWebSocketConnection)))
 
@@ -106,7 +258,7 @@ func Start() {
 	r.POST("/api/set-language", controller.SetLanguage)
 	r.POST("/api/detect-browser-language", controller.DetectBrowserLanguage)
 	r.GET("/api/translations", controller.GetTranslations)
-	
+
 	// Hugo安装相关路由
 	r.GET("/api/hugo-status", controller.GetHugoStatus)
 	r.POST("/api/install-hugo", controller.InstallHugo)

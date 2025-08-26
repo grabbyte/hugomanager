@@ -18,7 +18,14 @@
       "Bash(find:*)",
       "Bash(pgrep:*)",
       "Bash(cat:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(dos2unix:*)",
+      "Bash(go install:*)",
+      "Bash(timeout 5 go run main.go)",
+      "Bash(cp:*)",
+      "Bash(timeout 10 go run main.go)"
     ],
     "deny": []
   }

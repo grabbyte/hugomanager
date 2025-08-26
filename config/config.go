@@ -25,6 +25,48 @@ type SSHConfig struct {
     RemotePath        string `json:"remote_path"`
 }
 
+// 服务器配置结构
+type ServerConfig struct {
+    ID                string    `json:"id"`                   // 服务器ID
+    Name              string    `json:"name"`                 // 服务器名称
+    Host              string    `json:"host"`                 // 服务器地址
+    Port              int       `json:"port"`                 // SSH端口
+    Username          string    `json:"username,omitempty"`           // 运行时明文用户名
+    EncryptedUsername string    `json:"encrypted_username,omitempty"` // 存储时加密用户名
+    Password          string    `json:"password,omitempty"`           // 运行时明文密码
+    EncryptedPassword string    `json:"encrypted_password,omitempty"` // 存储时加密密码
+    KeyPath           string    `json:"key_path,omitempty"`           // 私钥路径
+    RemotePath        string    `json:"remote_path"`                  // 远程部署路径
+    Domain            string    `json:"domain"`               // 网站域名
+    Enabled           bool      `json:"enabled"`              // 是否启用
+    CreatedAt         time.Time `json:"created_at"`           // 创建时间
+    LastDeployment    *time.Time `json:"last_deployment,omitempty"`   // 最后部署时间
+}
+
+// 服务器部署状态
+type ServerDeploymentStatus struct {
+    ServerID         string     `json:"server_id"`           // 服务器ID
+    Status           string     `json:"status"`              // success, failed, building, deploying, paused, idle
+    Message          string     `json:"message"`             // 状态消息
+    Progress         int        `json:"progress"`            // 进度百分比 0-100
+    FilesDeployed    int        `json:"files_deployed"`      // 已部署文件数
+    BytesTransferred int64      `json:"bytes_transferred"`   // 已传输字节数
+    CurrentFile      string     `json:"current_file"`        // 当前处理文件
+    Speed            string     `json:"speed"`               // 传输速度
+    StartTime        *time.Time `json:"start_time,omitempty"` // 开始时间
+    UpdateTime       time.Time  `json:"update_time"`         // 更新时间
+    CanPause         bool       `json:"can_pause"`           // 是否可暂停
+    CanResume        bool       `json:"can_resume"`          // 是否可继续
+    CanStop          bool       `json:"can_stop"`            // 是否可停止
+}
+
+// 多服务器部署配置
+type MultiServerDeployment struct {
+    Servers        []ServerConfig            `json:"servers"`          // 服务器列表
+    StatusMap      map[string]ServerDeploymentStatus `json:"status_map"`       // 服务器状态映射
+    GlobalSettings map[string]interface{}    `json:"global_settings"`  // 全局设置
+}
+
 type UploadTask struct {
     ID               string    `json:"id"`
     LocalFile        string    `json:"local_file"`
@@ -63,6 +105,7 @@ type Config struct {
     HugoProjectPath string         `json:"hugo_project_path"`
     SSH             SSHConfig      `json:"ssh"`
     Deployment      DeploymentInfo `json:"deployment"`
+    MultiDeploy     MultiServerDeployment `json:"multi_deploy"` // 多服务器部署配置
     Language        string         `json:"language,omitempty"`        // 用户主动设置的语言
     UserSetLanguage bool           `json:"user_set_language,omitempty"` // 标记是否用户主动设置
 }
@@ -529,4 +572,169 @@ func GetTaskDuration() time.Duration {
         return 0
     }
     return time.Since(*currentConfig.Deployment.Progress.StartTime)
+}
+
+// 多服务器部署管理函数
+func GetMultiServerDeployment() MultiServerDeployment {
+    if currentConfig.MultiDeploy.StatusMap == nil {
+        currentConfig.MultiDeploy.StatusMap = make(map[string]ServerDeploymentStatus)
+    }
+    return currentConfig.MultiDeploy
+}
+
+func GetServerConfigs() []ServerConfig {
+    return currentConfig.MultiDeploy.Servers
+}
+
+func AddServerConfig(server ServerConfig) {
+    if server.ID == "" {
+        server.ID = generateServerID()
+    }
+    server.CreatedAt = time.Now()
+    currentConfig.MultiDeploy.Servers = append(currentConfig.MultiDeploy.Servers, server)
+    
+    // 初始化服务器状态
+    if currentConfig.MultiDeploy.StatusMap == nil {
+        currentConfig.MultiDeploy.StatusMap = make(map[string]ServerDeploymentStatus)
+    }
+    currentConfig.MultiDeploy.StatusMap[server.ID] = ServerDeploymentStatus{
+        ServerID:   server.ID,
+        Status:     "idle",
+        Message:    "等待部署",
+        Progress:   0,
+        UpdateTime: time.Now(),
+    }
+    
+    SaveConfig()
+}
+
+func UpdateServerConfig(serverID string, server ServerConfig) error {
+    for i, s := range currentConfig.MultiDeploy.Servers {
+        if s.ID == serverID {
+            server.ID = serverID
+            server.CreatedAt = s.CreatedAt // 保留创建时间
+            currentConfig.MultiDeploy.Servers[i] = server
+            SaveConfig()
+            return nil
+        }
+    }
+    return errors.New("server not found")
+}
+
+func DeleteServerConfig(serverID string) error {
+    for i, s := range currentConfig.MultiDeploy.Servers {
+        if s.ID == serverID {
+            // 删除服务器配置
+            currentConfig.MultiDeploy.Servers = append(currentConfig.MultiDeploy.Servers[:i], currentConfig.MultiDeploy.Servers[i+1:]...)
+            // 删除对应的状态
+            delete(currentConfig.MultiDeploy.StatusMap, serverID)
+            SaveConfig()
+            return nil
+        }
+    }
+    return errors.New("server not found")
+}
+
+func GetServerConfig(serverID string) (ServerConfig, error) {
+    for _, s := range currentConfig.MultiDeploy.Servers {
+        if s.ID == serverID {
+            return s, nil
+        }
+    }
+    return ServerConfig{}, errors.New("server not found")
+}
+
+func UpdateServerDeploymentStatus(serverID string, status ServerDeploymentStatus) {
+    if currentConfig.MultiDeploy.StatusMap == nil {
+        currentConfig.MultiDeploy.StatusMap = make(map[string]ServerDeploymentStatus)
+    }
+    status.ServerID = serverID
+    status.UpdateTime = time.Now()
+    currentConfig.MultiDeploy.StatusMap[serverID] = status
+    SaveConfig()
+}
+
+func GetServerDeploymentStatus(serverID string) ServerDeploymentStatus {
+    if currentConfig.MultiDeploy.StatusMap == nil {
+        return ServerDeploymentStatus{
+            ServerID: serverID,
+            Status:   "idle",
+            Message:  "等待部署",
+        }
+    }
+    if status, exists := currentConfig.MultiDeploy.StatusMap[serverID]; exists {
+        return status
+    }
+    return ServerDeploymentStatus{
+        ServerID: serverID,
+        Status:   "idle",
+        Message:  "等待部署",
+    }
+}
+
+func GetAllServerStatuses() map[string]ServerDeploymentStatus {
+    if currentConfig.MultiDeploy.StatusMap == nil {
+        currentConfig.MultiDeploy.StatusMap = make(map[string]ServerDeploymentStatus)
+    }
+    return currentConfig.MultiDeploy.StatusMap
+}
+
+// 生成服务器ID
+func generateServerID() string {
+    return "server_" + time.Now().Format("20060102150405")
+}
+
+// 加密服务器配置中的敏感信息
+func SetServerConfigWithEncryption(serverID string, server ServerConfig, masterPassword string) error {
+    // 加密用户名
+    if server.Username != "" {
+        encryptedUsername, err := encrypt(server.Username, masterPassword)
+        if err != nil {
+            return err
+        }
+        server.EncryptedUsername = encryptedUsername
+        server.Username = "" // 清除明文
+    }
+    
+    // 加密密码
+    if server.Password != "" {
+        encryptedPassword, err := encrypt(server.Password, masterPassword)
+        if err != nil {
+            return err
+        }
+        server.EncryptedPassword = encryptedPassword
+        server.Password = "" // 清除明文
+    }
+    
+    // 更新服务器配置
+    if serverID == "" {
+        AddServerConfig(server)
+    } else {
+        return UpdateServerConfig(serverID, server)
+    }
+    
+    return nil
+}
+
+// 解密服务器配置
+func DecryptServerConfig(server ServerConfig, masterPassword string) (ServerConfig, error) {
+    var err error
+    
+    // 解密用户名
+    if server.EncryptedUsername != "" {
+        server.Username, err = decrypt(server.EncryptedUsername, masterPassword)
+        if err != nil {
+            return server, err
+        }
+    }
+    
+    // 解密密码
+    if server.EncryptedPassword != "" {
+        server.Password, err = decrypt(server.EncryptedPassword, masterPassword)
+        if err != nil {
+            return server, err
+        }
+    }
+    
+    return server, nil
 }

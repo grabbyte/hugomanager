@@ -29,6 +29,8 @@ type ProgressMessage struct {
 	Speed       string    `json:"speed"`        // 传输速度
 	ETA         string    `json:"eta"`          // 预计剩余时间
 	Timestamp   time.Time `json:"timestamp"`    // 时间戳
+	ServerID    string    `json:"server_id"`    // 服务器ID，用于多服务器部署
+	ServerName  string    `json:"server_name"`  // 服务器名称
 }
 
 // 连接管理器
@@ -194,6 +196,30 @@ func BroadcastProgress(msgType, status, message string, progress, total, current
 	}
 }
 
+// 广播多服务器进度消息
+func BroadcastMultiServerProgress(serverID, serverName, msgType, status, message string, progress, total, current int, currentFile string) {
+	progressMsg := ProgressMessage{
+		Type:        msgType,
+		Status:      status,
+		Message:     message,
+		Progress:    progress,
+		Total:       total,
+		Current:     current,
+		CurrentFile: currentFile,
+		Timestamp:   time.Now(),
+		ServerID:    serverID,
+		ServerName:  serverName,
+	}
+
+	select {
+	case Manager.broadcast <- progressMsg:
+		// 消息已发送到广播通道
+	default:
+		// 通道已满，跳过这条消息
+		log.Printf("多服务器进度广播通道已满，跳过消息: %s", message)
+	}
+}
+
 // 广播构建进度
 func BroadcastBuildProgress(message string, progress int) {
 	BroadcastProgress("build", "building", message, progress, 100, progress, "")
@@ -217,6 +243,27 @@ func BroadcastError(msgType, message string) {
 // 广播暂停消息
 func BroadcastPause(message string, progress, total, current int) {
 	BroadcastProgress("deploy", "paused", message, progress, total, current, "")
+}
+
+// 多服务器专用广播函数
+func BroadcastMultiServerBuildProgress(serverID, serverName, message string, progress int) {
+	BroadcastMultiServerProgress(serverID, serverName, "build", "building", message, progress, 100, progress, "")
+}
+
+func BroadcastMultiServerDeployProgress(serverID, serverName, message string, progress, total, current int, currentFile string) {
+	BroadcastMultiServerProgress(serverID, serverName, "deploy", "deploying", message, progress, total, current, currentFile)
+}
+
+func BroadcastMultiServerComplete(serverID, serverName, msgType, message string, total int) {
+	BroadcastMultiServerProgress(serverID, serverName, msgType, "success", message, 100, total, total, "")
+}
+
+func BroadcastMultiServerError(serverID, serverName, msgType, message string) {
+	BroadcastMultiServerProgress(serverID, serverName, msgType, "failed", message, 0, 0, 0, "")
+}
+
+func BroadcastMultiServerPause(serverID, serverName, message string, progress, total, current int) {
+	BroadcastMultiServerProgress(serverID, serverName, "deploy", "paused", message, progress, total, current, "")
 }
 
 // 获取连接数

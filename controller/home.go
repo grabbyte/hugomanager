@@ -4,34 +4,29 @@ package controller
 import (
     "github.com/gin-gonic/gin"
     "hugo-manager-go/config"
-    "io/fs"
-    "path/filepath"
-    "strings"
 )
 
 func Home(c *gin.Context) {
-    var articles []string
-    contentDir := config.GetContentDir()
-    
-    err := filepath.WalkDir(contentDir, func(path string, d fs.DirEntry, err error) error {
-        if err != nil {
-            return err
-        }
-        if d != nil && !d.IsDir() && strings.HasSuffix(path, ".md") {
-            rel, _ := filepath.Rel(contentDir, path)
-            articles = append(articles, rel)
-        }
-        return nil
-    })
-    
+    // 获取所有文章信息
+    articleInfos, err := getAllArticles()
     if err != nil {
-        // If content directory doesn't exist, show empty list
-        articles = []string{}
+        articleInfos = []ArticleInfo{}
+    }
+
+    // 限制显示最近20条记录
+    var articles []string
+    maxArticles := 20
+    for i, articleInfo := range articleInfos {
+        if i >= maxArticles {
+            break
+        }
+        articles = append(articles, articleInfo.Path)
     }
 
     c.HTML(200, "home/index.html", gin.H{
         "Title":           "Hugo 博客管理器",
         "Articles":        articles,
+        "TotalArticles":   len(articleInfos),
         "HugoProjectPath": config.GetHugoProjectPath(),
     })
 }
