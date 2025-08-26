@@ -25,7 +25,8 @@
       "Bash(go install:*)",
       "Bash(timeout 5 go run main.go)",
       "Bash(cp:*)",
-      "Bash(timeout 10 go run main.go)"
+      "Bash(timeout 10 go run main.go)",
+      "Bash(timeout 20 go run main.go)"
     ],
     "deny": []
   }

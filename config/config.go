@@ -174,7 +174,11 @@ func LoadConfig() {
 }
 
 func SaveConfig() {
-    data, _ := json.MarshalIndent(currentConfig, "", "  ")
+    data, err := json.MarshalIndent(currentConfig, "", "  ")
+    if err != nil {
+        return
+    }
+    
     os.WriteFile("config.json", data, 0644)
 }
 

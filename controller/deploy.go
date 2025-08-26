@@ -18,6 +18,21 @@ import (
 func DeployManager(c *gin.Context) {
 	servers := config.GetServerConfigs()
 	statuses := config.GetAllServerStatuses()
+	
+	// 将statuses转换为map[string]interface{}以兼容模板函数
+	statusesInterface := make(map[string]interface{})
+	for k, v := range statuses {
+		statusesInterface[k] = v
+	}
+	
+	// 调试：打印传递给模板的数据
+	fmt.Printf("[TEMPLATE DEBUG] DeployManager 获取到 %d 个服务器\n", len(servers))
+	for i, server := range servers {
+		fmt.Printf("[TEMPLATE DEBUG] 服务器 %d: %s (ID: %s, Host: %s)\n", i+1, server.Name, server.ID, server.Host)
+	}
+	fmt.Printf("[TEMPLATE DEBUG] servers 是否为nil: %v\n", servers == nil)
+	fmt.Printf("[TEMPLATE DEBUG] servers 长度: %d\n", len(servers))
+	fmt.Printf("[TEMPLATE DEBUG] statusesInterface 长度: %d\n", len(statusesInterface))
 
 	// 获取Hugo serve状态
 	hugoManager := utils.GetHugoServeManager()
@@ -41,17 +56,29 @@ func DeployManager(c *gin.Context) {
 	// 获取部署信息
 	deployment := config.GetDeploymentInfo()
 
-	c.HTML(200, "deploy/index.html", gin.H{
+	templateData := gin.H{
 		"Title":          "部署管理",
 		"Servers":        servers,
-		"ServerStatuses": statuses,
+		"ServerStatuses": statusesInterface,
 		"Hugo": gin.H{
 			"Status": status,
 			"URL":    url,
 		},
 		"Deployment": deployment,
 		"Page":       "deploy",
-	})
+	}
+	
+	// 额外调试：打印模板数据
+	fmt.Printf("[TEMPLATE DEBUG] 模板数据中的服务器数量: %d\n", len(servers))
+	if serversInTemplate, exists := templateData["Servers"]; exists {
+		if serverSlice, ok := serversInTemplate.([]config.ServerConfig); ok {
+			fmt.Printf("[TEMPLATE DEBUG] 模板数据解析成功，数量: %d\n", len(serverSlice))
+		} else {
+			fmt.Printf("[TEMPLATE DEBUG] 模板数据类型错误: %T\n", serversInTemplate)
+		}
+	}
+	
+	c.HTML(200, "deploy/index.html", templateData)
 }
 
 // 获取SSH配置

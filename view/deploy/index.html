@@ -149,7 +149,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="bi bi-servers"></i> <span data-i18n="deploy.title">服务器列表</span>
-                            <span class="badge bg-primary ms-2">{{ if .Servers }}{{ len .Servers }}{{ else }}0{{ end }}</span>
+                            <span class="badge bg-primary ms-2">{{ len .Servers }}</span>
                         </h5>
                     </div>
                     <div class="card-body p-0">
@@ -166,13 +166,17 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {{ if and .Servers (gt (len .Servers) 0) }}
+                                    <!-- DEBUG: 服务器数据调试信息 -->
+                                    <!-- 服务器数量: {{ if .Servers }}{{ len .Servers }}{{ else }}nil{{ end }} -->
+                                    <!-- 服务器存在: {{ if .Servers }}true{{ else }}false{{ end }} -->
+                                    <!-- 条件检查: {{ if and .Servers (gt (len .Servers) 0) }}true{{ else }}false{{ end }} -->
+                                    
+                                    {{ if gt (len .Servers) 0 }}
                                     {{ range .Servers }}
-                                    {{ $status := getServerStatus $.ServerStatuses .ID }}
                                     <tr class="server-row" id="server-row-{{ .ID }}">
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                <div class="status-icon status-{{ $status.Status }}"></div>
+                                                <div class="status-icon status-idle"></div>
                                                 <div>
                                                     <strong>{{ .Name }}</strong>
                                                     {{ if not .Enabled }}
@@ -194,43 +198,14 @@
                                             <code>{{ .Host }}:{{ .Port }}</code>
                                         </td>
                                         <td>
-                                            <span class="badge status-badge bg-{{ if eq $status.Status "success" }}success{{ else if eq $status.Status "failed" }}danger{{ else if eq $status.Status "building" }}warning{{ else if eq $status.Status "deploying" }}info{{ else if eq $status.Status "paused" }}warning{{ else }}secondary{{ end }}" 
-                                                  data-i18n="deploy.status.{{ $status.Status }}">
-                                                {{ if eq $status.Status "idle" }}空闲{{ else if eq $status.Status "building" }}构建中{{ else if eq $status.Status "deploying" }}部署中{{ else if eq $status.Status "success" }}成功{{ else if eq $status.Status "failed" }}失败{{ else if eq $status.Status "paused" }}已暂停{{ end }}
-                                            </span>
-                                            <div class="small text-muted mt-1">{{ $status.Message }}</div>
-                                            {{ if and $status.FilesDeployed (gt $status.FilesDeployed 0) }}
-                                            <div class="small text-primary">
-                                                <i class="bi bi-arrow-up-circle ms-2"></i> {{ formatBytes $status.BytesTransferred }}
-                                            </div>
-                                            {{ end }}
+                                            <span class="badge status-badge bg-secondary">空闲</span>
+                                            <div class="small text-muted mt-1">等待部署</div>
                                         </td>
                                         <td>
                                             <div class="progress-container">
-                                                {{ if or (eq $status.Status "building") (eq $status.Status "deploying") }}
-                                                <div class="progress" style="height: 20px;">
-                                                    <div class="progress-bar {{ if eq $status.Status "building" }}bg-warning{{ else }}bg-info{{ end }} progress-bar-striped progress-bar-animated" 
-                                                         role="progressbar" style="width: {{ $status.Progress }}%" 
-                                                         aria-valuenow="{{ $status.Progress }}" aria-valuemin="0" aria-valuemax="100">
-                                                        {{ $status.Progress }}%
-                                                    </div>
-                                                </div>
-                                                {{ if $status.Speed }}
-                                                <div class="small text-muted mt-1">
-                                                    <i class="bi bi-speedometer2"></i> {{ $status.Speed }}
-                                                </div>
-                                                {{ end }}
-                                                {{ else }}
                                                 <div class="text-center text-muted">
-                                                    {{ if eq $status.Status "success" }}
-                                                    <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                                    {{ else if eq $status.Status "failed" }}
-                                                    <i class="bi bi-x-circle-fill text-danger fs-4"></i>
-                                                    {{ else }}
                                                     <i class="bi bi-dash-circle text-muted fs-4"></i>
-                                                    {{ end }}
                                                 </div>
-                                                {{ end }}
                                             </div>
                                         </td>
                                         <td>
@@ -246,13 +221,11 @@
                                                 <!-- 测试连接 -->
                                                 <button class="btn btn-sm btn-outline-info" 
                                                         onclick="testConnection('{{ .ID }}')" 
-                                                        title="测试连接" 
-                                                        {{ if or (eq $status.Status "building") (eq $status.Status "deploying") }}disabled{{ end }}>
+                                                        title="测试连接">
                                                     <i class="bi bi-wifi"></i>
                                                 </button>
                                                 
                                                 <!-- 部署按钮组 -->
-                                                {{ if eq $status.Status "idle" }}
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-success" 
                                                             onclick="deployServer('{{ .ID }}', false)" title="全量部署">
@@ -274,37 +247,12 @@
                                                         <i class="bi bi-lightning-fill"></i>
                                                     </button>
                                                 </div>
-                                                
-                                                {{ else if eq $status.Status "paused" }}
-                                                <button class="btn btn-sm btn-warning" 
-                                                        onclick="resumeDeployment('{{ .ID }}')" 
-                                                        title="继续部署">
-                                                    <i class="bi bi-play-fill"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-danger" 
-                                                        onclick="stopDeployment('{{ .ID }}')" 
-                                                        title="停止部署">
-                                                    <i class="bi bi-stop-fill"></i>
-                                                </button>
-                                                {{ else if or (eq $status.Status "building") (eq $status.Status "deploying") }}
-                                                <button class="btn btn-sm btn-warning" 
-                                                        onclick="pauseDeployment('{{ .ID }}')" 
-                                                        title="暂停部署">
-                                                    <i class="bi bi-pause-fill"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-danger" 
-                                                        onclick="stopDeployment('{{ .ID }}')" 
-                                                        title="停止部署">
-                                                    <i class="bi bi-stop-fill"></i>
-                                                </button>
-                                                {{ end }}
                                                 {{ end }}
                                                 
                                                 <!-- 删除按钮 -->
                                                 <button class="btn btn-sm btn-outline-danger" 
                                                         onclick="deleteServer('{{ .ID }}')" 
-                                                        title="删除服务器" 
-                                                        {{ if or (eq $status.Status "building") (eq $status.Status "deploying") }}disabled{{ end }}>
+                                                        title="删除服务器">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
