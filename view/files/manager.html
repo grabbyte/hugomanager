@@ -294,9 +294,16 @@
                 return;
             }
 
-            // 跳转到独立的编辑页面
-            const editorUrl = '/files/edit?file=' + encodeURIComponent(path);
-            window.open(editorUrl, '_blank');
+            // 判断文件类型，选择合适的编辑器
+            if (name.toLowerCase().endsWith('.md')) {
+                // Markdown文件使用博客编辑器
+                const editorUrl = '/article/edit?path=' + encodeURIComponent(path);
+                window.open(editorUrl, '_blank');
+            } else {
+                // 其他文件使用通用文件编辑器
+                const editorUrl = '/files/edit?file=' + encodeURIComponent(path);
+                window.open(editorUrl, '_blank');
+            }
         }
 
 
@@ -428,7 +435,7 @@
                 
                 // 自动打开新创建的文章
                 setTimeout(() => {
-                    const editorUrl = '/files/edit?file=' + encodeURIComponent(data.path);
+                    const editorUrl = '/article/edit?path=' + encodeURIComponent(data.path);
                     window.open(editorUrl, '_blank');
                 }, 500);
             })

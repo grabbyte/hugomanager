@@ -7,22 +7,246 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ .Title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/default.css">
+    
+    <style>
+        .CodeMirror {
+            height: 500px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        .CodeMirror-focused {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* Markdown语法高亮样式 */
+        .cm-header { color: #2563eb; font-weight: bold; }
+        .cm-strong { font-weight: bold; }
+        .cm-em { font-style: italic; }
+        .cm-link { color: #0066cc; text-decoration: underline; }
+        .cm-url { color: #0066cc; }
+        .cm-quote { color: #6a737d; font-style: italic; }
+        .cm-code { 
+            background-color: rgba(175, 184, 193, 0.2);
+            color: #d73a49;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .cm-list { color: #6f42c1; }
+        .cm-hr { color: #d1d5da; }
+        .cm-image { color: #22863a; }
+    </style>
 </head>
 <body>
     {{ template "header" . }}
     <div class="container mt-4">
-        <h2>编辑文章</h2>
-        <form method="post" action="/article/save">
-            <input type="hidden" name="path" value="{{ .Path }}">
-            <textarea name="content" class="form-control" rows="25">{{ .Content }}</textarea>
-            <button class="btn btn-success mt-2">保存</button>
-        </form>
+        <!-- 页面标题和操作按钮 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>编辑文章</h2>
+                <small class="text-muted">{{ .Path }}</small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <!-- 草稿开关 -->
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="draftSwitch" {{ if .IsDraft }}checked{{ end }}>
+                    <label class="form-check-label" for="draftSwitch">
+                        <i class="bi bi-file-earmark-text me-1"></i>
+                        <span id="draftLabel">{{ if .IsDraft }}草稿{{ else }}已发布{{ end }}</span>
+                    </label>
+                </div>
+                <!-- 操作按钮 -->
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" onclick="saveArticle()">
+                        <i class="bi bi-check-circle me-1"></i>
+                        保存
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="previewArticle()">
+                        <i class="bi bi-eye me-1"></i>
+                        预览
+                    </button>
+                    <a href="/articles" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 导航 -->
+        <ul class="nav nav-tabs" id="editorTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="content-tab" data-bs-toggle="tab" data-bs-target="#content-pane" 
+                        type="button" role="tab" aria-controls="content-pane" aria-selected="true">
+                    <i class="bi bi-file-text me-1"></i>
+                    内容编辑
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-pane" 
+                        type="button" role="tab" aria-controls="metadata-pane" aria-selected="false">
+                    <i class="bi bi-tags me-1"></i>
+                    元数据
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" 
+                        type="button" role="tab" aria-controls="settings-pane" aria-selected="false">
+                    <i class="bi bi-gear me-1"></i>
+                    高级设置
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab 内容区域 -->
+        <div class="tab-content mt-3" id="editorTabContent">
+            <!-- 内容编辑 Tab -->
+            <div class="tab-pane fade show active" id="content-pane" role="tabpanel" aria-labelledby="content-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <form method="post" action="/article/save" id="articleForm">
+                            <input type="hidden" name="path" value="{{ .Path }}">
+                            <input type="hidden" name="is_draft" id="isDraftInput" value="{{ if .IsDraft }}true{{ else }}false{{ end }}">
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label for="contentTextarea" class="form-label mb-0">
+                                        <i class="bi bi-file-text me-1"></i>
+                                        Markdown 内容
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="insertImage()">
+                                        <i class="bi bi-image"></i> 插入图片
+                                    </button>
+                                    <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                                </div>
+                                <div id="contentEditor" class="border rounded">
+                                    <textarea id="contentTextarea" style="display:none;">{{ .BodyContent }}</textarea>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    支持标准 Markdown 语法，包括代码块、表格、链接等。支持拖拽图片文件或使用Ctrl+V粘贴剪贴板中的图片
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 元数据 Tab -->
+            <div class="tab-pane fade" id="metadata-pane" role="tabpanel" aria-labelledby="metadata-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="articleTitle" class="form-label">
+                                    <i class="bi bi-type me-1"></i>
+                                    文章标题
+                                </label>
+                                <input type="text" class="form-control" id="articleTitle" 
+                                       value="{{ .ArticleTitle }}" placeholder="输入文章标题...">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="articleAuthor" class="form-label">
+                                    <i class="bi bi-person me-1"></i>
+                                    作者
+                                </label>
+                                <input type="text" class="form-control" id="articleAuthor" 
+                                       value="{{ .Author }}" placeholder="输入作者姓名...">
+                                <div class="form-text">例如：软件开发大郭</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="articleType" class="form-label">
+                                    <i class="bi bi-bookmark me-1"></i>
+                                    文章类型
+                                </label>
+                                <select class="form-select" id="articleType">
+                                    <option value="post" {{ if eq .Type "post" }}selected{{ end }}>post (博客文章)</option>
+                                    <option value="page" {{ if eq .Type "page" }}selected{{ end }}>page (静态页面)</option>
+                                </select>
+                                <div class="form-text">选择内容类型</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="categories" class="form-label">
+                                    <i class="bi bi-folder me-1"></i>
+                                    分类
+                                </label>
+                                <input type="text" class="form-control" id="categories" 
+                                       value="{{ range $i, $cat := .Categories }}{{ if $i }}, {{ end }}{{ $cat }}{{ end }}"
+                                       placeholder="输入分类，用逗号分隔...">
+                                <div class="form-text">例如：技术, 编程, Web开发</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="tags" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>
+                                    标签
+                                </label>
+                                <input type="text" class="form-control" id="tags" 
+                                       value="{{ range $i, $tag := .Tags }}{{ if $i }}, {{ end }}{{ $tag }}{{ end }}"
+                                       placeholder="输入标签，用逗号分隔...">
+                                <div class="form-text">例如：Hugo, Go, 博客, 教程</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级设置 Tab -->
+            <div class="tab-pane fade" id="settings-pane" role="tabpanel" aria-labelledby="settings-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="publishDate" class="form-label">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    发布日期
+                                </label>
+                                <input type="datetime-local" class="form-control" id="publishDate" 
+                                       value="{{ .PublishDate }}">
+                                <div class="form-text">设置文章的发布时间</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="articleURL" class="form-label">
+                                    <i class="bi bi-link me-1"></i>
+                                    URL/永久链接
+                                </label>
+                                <input type="text" class="form-control" id="articleURL" 
+                                       value="{{ .URL }}" placeholder="自定义文章URL...">
+                                <div class="form-text">留空则使用默认生成的URL</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <footer class="text-center mt-5 text-muted">
         Hugo Manager © 2025
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <!-- CodeMirror JS -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/mode/overlay.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/gfm/gfm.js"></script>
+    
     <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/article-editor.js"></script>
+    
 </body>
 </html>
 {{ end }}

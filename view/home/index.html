@@ -371,7 +371,7 @@
         }
         // 编辑文章
         function editArticle(articlePath) {
-            const editorUrl = '/files/edit?file=' + encodeURIComponent(articlePath);
+            const editorUrl = '/article/edit?path=' + encodeURIComponent(articlePath);
             window.open(editorUrl, '_blank');
         }
 

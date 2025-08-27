@@ -172,6 +172,10 @@ func Start() {
 	r.GET("/api/articles/stats", controller.GetArticleStatsAPI)
 	r.GET("/article/edit", controller.EditArticle)
 	r.POST("/article/save", controller.SaveArticle)
+	
+	// Hugo server检测和启动API
+	r.POST("/api/check-hugo-server", controller.CheckHugoServerAPI)
+	r.GET("/api/hugo-server/status", controller.GetHugoServerStatusAPI)
 	r.GET("/settings", controller.Settings)
 	r.POST("/settings/update", controller.UpdateSettings)
 	r.GET("/api/browse-folders", controller.BrowseFolders)
