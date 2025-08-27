@@ -139,6 +139,7 @@
     "msg.save.success": "正常に保存されました",
     "msg.serve.started": "Hugo serveが正常に開始されました",
     "msg.serve.stopped": "Hugo serveが停止されました",
+    "nav.articles": "ブログ管理",
     "nav.back": "戻る",
     "nav.deploy": "デプロイ",
     "nav.files": "ファイル",

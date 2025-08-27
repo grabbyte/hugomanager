@@ -139,6 +139,7 @@
     "msg.save.success": "儲存成功",
     "msg.serve.started": "Hugo serve啟動成功",
     "msg.serve.stopped": "Hugo serve已停止",
+    "nav.articles": "部落格管理",
     "nav.back": "返回",
     "nav.deploy": "部署管理",
     "nav.files": "檔案管理",

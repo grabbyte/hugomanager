@@ -139,6 +139,7 @@
     "msg.save.success": "Успешно сохранено",
     "msg.serve.started": "Hugo serve успешно запущен",
     "msg.serve.stopped": "Hugo serve остановлен",
+    "nav.articles": "Управление блогом",
     "nav.back": "Назад",
     "nav.deploy": "Развертывание",
     "nav.files": "Файлы",

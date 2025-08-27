@@ -30,6 +30,11 @@
         .pagination-info {
             color: #6c757d;
         }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
     </style>
 </head>
 <body>
@@ -47,7 +52,7 @@
                     <div class="text-end">
                         <div class="card bg-white text-dark">
                             <div class="card-body text-center">
-                                <h3 class="card-title">{{ .TotalArticles }}</h3>
+                                <h3 class="card-title" id="totalArticlesCount">0</h3>
                                 <p class="card-text" data-i18n="articles.total.count">篇文章</p>
                             </div>
                         </div>
@@ -63,30 +68,30 @@
             <div class="col-12">
                 <ul class="nav nav-tabs" id="articleTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {{ if ne .SelectedStatus "draft" }}active{{ end }}" 
+                        <button class="nav-link active" 
                                 id="published-tab" data-bs-toggle="tab" data-bs-target="#published" 
                                 type="button" role="tab" onclick="switchTab('published')">
                             <i class="bi bi-file-earmark-check me-2"></i>
                             <span data-i18n="articles.tab.published">已发布</span>
-                            <span class="badge bg-primary ms-1">{{ .PublishedCount }}</span>
+                            <span class="badge bg-primary ms-1" id="publishedCountBadge">0</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {{ if eq .SelectedStatus "draft" }}active{{ end }}" 
+                        <button class="nav-link" 
                                 id="draft-tab" data-bs-toggle="tab" data-bs-target="#draft" 
                                 type="button" role="tab" onclick="switchTab('draft')">
                             <i class="bi bi-file-earmark-text me-2"></i>
                             <span data-i18n="articles.tab.drafts">草稿箱</span>
-                            <span class="badge bg-warning ms-1">{{ .DraftCount }}</span>
+                            <span class="badge bg-warning ms-1" id="draftCountBadge">0</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {{ if eq .SelectedStatus "issues" }}active{{ end }}" 
+                        <button class="nav-link" 
                                 id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" 
                                 type="button" role="tab" onclick="switchTab('issues')">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             <span data-i18n="articles.tab.issues">问题检测</span>
-                            <span class="badge bg-danger ms-1">{{ .IssuesCount }}</span>
+                            <span class="badge bg-danger ms-1" id="issuesCountBadge">0</span>
                         </button>
                     </li>
                 </ul>
@@ -103,9 +108,9 @@
             <div class="row mb-3">
                 <div class="col-md-8">
                     <label class="form-label" data-i18n="articles.search">搜索文章</label>
-                    <input type="text" class="form-control" id="searchInput" value="{{ .SearchKeyword }}" 
+                    <input type="text" class="form-control" id="searchInput"
                            data-i18n-placeholder="articles.search.placeholder" 
-                           placeholder="输入关键词搜索标题或内容..." onkeyup="handleSearchKeyPress(event)">
+                           placeholder="输入关键词搜索标题或内容...">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" data-i18n="articles.search.actions">搜索操作</label>
@@ -126,27 +131,24 @@
                     <label class="form-label" data-i18n="articles.filter.year">按年份筛选</label>
                     <select class="form-select" id="yearFilter" onchange="applyFilter()">
                         <option value="" data-i18n="articles.filter.all.years">所有年份</option>
-                        {{ range .AvailableYears }}
-                        <option value="{{ . }}" {{ if eq . $.SelectedYear }}selected{{ end }}>{{ . }}年</option>
-                        {{ end }}
                     </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" data-i18n="articles.filter.month">按月份筛选</label>
                     <select class="form-select" id="monthFilter" onchange="applyFilter()">
                         <option value="" data-i18n="articles.filter.all.months">所有月份</option>
-                        <option value="1" {{ if eq 1 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.1">1月</option>
-                        <option value="2" {{ if eq 2 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.2">2月</option>
-                        <option value="3" {{ if eq 3 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.3">3月</option>
-                        <option value="4" {{ if eq 4 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.4">4月</option>
-                        <option value="5" {{ if eq 5 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.5">5月</option>
-                        <option value="6" {{ if eq 6 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.6">6月</option>
-                        <option value="7" {{ if eq 7 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.7">7月</option>
-                        <option value="8" {{ if eq 8 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.8">8月</option>
-                        <option value="9" {{ if eq 9 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.9">9月</option>
-                        <option value="10" {{ if eq 10 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.10">10月</option>
-                        <option value="11" {{ if eq 11 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.11">11月</option>
-                        <option value="12" {{ if eq 12 .SelectedMonth }}selected{{ end }} data-i18n="articles.month.12">12月</option>
+                        <option value="1" data-i18n="articles.month.1">1月</option>
+                        <option value="2" data-i18n="articles.month.2">2月</option>
+                        <option value="3" data-i18n="articles.month.3">3月</option>
+                        <option value="4" data-i18n="articles.month.4">4月</option>
+                        <option value="5" data-i18n="articles.month.5">5月</option>
+                        <option value="6" data-i18n="articles.month.6">6月</option>
+                        <option value="7" data-i18n="articles.month.7">7月</option>
+                        <option value="8" data-i18n="articles.month.8">8月</option>
+                        <option value="9" data-i18n="articles.month.9">9月</option>
+                        <option value="10" data-i18n="articles.month.10">10月</option>
+                        <option value="11" data-i18n="articles.month.11">11月</option>
+                        <option value="12" data-i18n="articles.month.12">12月</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -163,106 +165,180 @@
             </div>
             
             <!-- 搜索结果提示 -->
-            {{ if .SearchKeyword }}
-            <div class="row mt-3">
+            <div class="row mt-3" id="searchResultAlert" style="display: none;">
                 <div class="col-12">
                     <div class="alert alert-info">
                         <i class="bi bi-search me-2"></i>
                         <strong data-i18n="articles.search.results">搜索结果：</strong>
-                        "{{ .SearchKeyword }}" - 
-                        <span data-i18n="articles.search.found">找到</span> {{ .TotalArticles }} 
-                        <span data-i18n="articles.search.articles">篇文章</span>
+                        <span id="searchResultText"></span>
                         <button class="btn btn-sm btn-outline-primary ms-2" onclick="clearSearch()">
                             <i class="bi bi-x"></i> <span data-i18n="articles.search.clear">清除搜索</span>
                         </button>
                     </div>
                 </div>
             </div>
-            {{ end }}
+        </div>
+
+        <!-- 加载指示器 -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">正在加载文章...</p>
         </div>
 
         <!-- 文章列表 -->
-        <div class="card">
+        <div class="card" id="articleListCard">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="bi bi-list-ul"></i> <span data-i18n="articles.list">文章列表</span>
                 </h5>
-                <div class="pagination-info">
-                    <span data-i18n="articles.showing">显示</span>
-                    {{ $start := add (mul (sub .CurrentPage 1) .PageSize) 1 }}
-                    {{ $end := .PageSize }}
-                    {{ if gt (mul .CurrentPage .PageSize) .TotalArticles }}
-                        {{ $end = sub .TotalArticles (mul (sub .CurrentPage 1) .PageSize) }}
-                    {{ end }}
-                    {{ $start }} - {{ add (sub $start 1) $end }} / {{ .TotalArticles }}
-                    <span data-i18n="articles.items">项</span>
+                <div class="pagination-info" id="paginationInfo">
                 </div>
             </div>
-            <div class="card-body p-0">
-                {{ if .Articles }}
-                    {{ range $index, $article := .Articles }}
-                    <div class="article-item p-3 border-bottom{{ if $article.IsDraft }} bg-light{{ end }}" data-article="{{ $article.Path }}" onclick="editArticle('{{ $article.Path }}')">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <h6 class="mb-2">
-                                    {{ if $article.IsDraft }}
-                                    <i class="bi bi-file-earmark-text text-warning me-2"></i>
-                                    <span class="badge bg-warning text-dark me-2" data-i18n="articles.draft.badge">草稿</span>
-                                    {{ else }}
-                                    <i class="bi bi-file-earmark-check text-success me-2"></i>
-                                    {{ end }}
-                                    <span class="article-title">
-                                        {{ if $article.Title }}{{ $article.Title }}{{ else }}{{ $article.Path }}{{ end }}
-                                    </span>
-                                </h6>
-                                <div class="small text-muted mb-1">
-                                    <i class="bi bi-calendar me-1"></i>
-                                    <span>{{ $article.FormattedTime }}</span>
-                                    <i class="bi bi-file-earmark ms-3 me-1"></i>
-                                    <span>{{ formatFileSize $article.Size }}</span>
-                                </div>
-                                
-                                <!-- 问题显示 -->
-                                {{ if $article.HasIssues }}
-                                <div class="small text-danger mt-2">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>
-                                    <strong data-i18n="articles.issues.detected">发现问题：</strong>
-                                    <div class="ms-3 mt-1">
-                                        {{ range $article.Issues }}
-                                        <span class="badge bg-danger me-1 mb-1">{{ . }}</span>
-                                        {{ end }}
-                                    </div>
-                                </div>
-                                {{ end }}
-                                
-                                <!-- 摘要显示 -->
-                                {{ if and $article.Summary (ne $.SelectedStatus "issues") }}
-                                <div class="small text-muted mt-2">
-                                    <i class="bi bi-file-text me-1"></i>
-                                    <span>{{ $article.Summary }}</span>
-                                </div>
-                                {{ end }}
-                                <small class="text-muted">
-                                    <i class="bi bi-folder me-1"></i>
-                                    {{ if contains $article.Path "/" }}
-                                        {{ index (split $article.Path "/") 0 }}
-                                    {{ else }}
-                                        <span data-i18n="articles.root.directory">根目录</span>
-                                    {{ end }}
-                                </small>
-                            </div>
-                            <div class="text-end">
-                                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); editArticle('{{ $article.Path }}')">
-                                    <i class="bi bi-pencil"></i> <span data-i18n="articles.edit">编辑</span>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteArticle('{{ $article.Path }}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {{ end }}
-                {{ else }}
+            <div class="card-body p-0" id="articleListContainer">
+                <!-- 文章列表将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="row mt-4" id="paginationContainer">
+            <!-- 分页将通过JavaScript动态生成 -->
+        </div>
+
+        <!-- 项目信息 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong data-i18n="articles.current.project">当前Hugo项目：</strong> <span id="hugoProjectPath"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/static/js/i18n.js"></script>
+    
+    <script>
+        // 全局变量
+        let currentPage = 1;
+        let currentStatus = 'published';
+        let currentSearch = '';
+        let currentYear = '';
+        let currentMonth = '';
+        let statsData = {};
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 从URL参数获取初始状态
+            const urlParams = new URLSearchParams(window.location.search);
+            currentPage = parseInt(urlParams.get('page')) || 1;
+            currentStatus = urlParams.get('status') || 'published';
+            currentSearch = urlParams.get('search') || '';
+            currentYear = urlParams.get('year') || '';
+            currentMonth = urlParams.get('month') || '';
+            
+            // 设置表单初始值
+            document.getElementById('searchInput').value = currentSearch;
+            document.getElementById('yearFilter').value = currentYear;
+            document.getElementById('monthFilter').value = currentMonth;
+            
+            // 设置活动tab
+            setActiveTab(currentStatus);
+            
+            // 加载统计数据和文章列表
+            loadArticleStats();
+            loadArticles();
+            
+            // 绑定搜索框回车事件
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        });
+        
+        // 加载文章统计数据
+        async function loadArticleStats() {
+            try {
+                const response = await fetch('/api/articles/stats');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load article stats:', data.error);
+                    return;
+                }
+                
+                statsData = data;
+                
+                // 更新统计数字
+                document.getElementById('totalArticlesCount').textContent = data.total_articles;
+                document.getElementById('publishedCountBadge').textContent = data.published_count;
+                document.getElementById('draftCountBadge').textContent = data.draft_count;
+                document.getElementById('issuesCountBadge').textContent = data.issues_count;
+                document.getElementById('hugoProjectPath').textContent = data.hugo_project_path;
+                
+                // 更新年份选项
+                const yearSelect = document.getElementById('yearFilter');
+                yearSelect.innerHTML = '<option value="" data-i18n="articles.filter.all.years">所有年份</option>';
+                data.available_years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year + '年';
+                    if (year.toString() === currentYear) {
+                        option.selected = true;
+                    }
+                    yearSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading article stats:', error);
+            }
+        }
+        
+        // 加载文章列表
+        async function loadArticles() {
+            showLoading();
+            
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    status: currentStatus,
+                    page_size: 20
+                });
+                
+                if (currentSearch) params.append('search', currentSearch);
+                if (currentYear) params.append('year', currentYear);
+                if (currentMonth) params.append('month', currentMonth);
+                
+                const response = await fetch(`/api/articles?${params}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('加载文章失败: ' + data.error);
+                    return;
+                }
+                
+                renderArticles(data.articles);
+                renderPagination(data);
+                updatePaginationInfo(data);
+                updateSearchResultAlert();
+                
+            } catch (error) {
+                console.error('Error loading articles:', error);
+                showError('网络错误: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 渲染文章列表
+        function renderArticles(articles) {
+            const container = document.getElementById('articleListContainer');
+            
+            if (!articles || articles.length === 0) {
+                container.innerHTML = `
                     <div class="text-center py-5">
                         <i class="bi bi-file-earmark-x fs-1 text-muted mb-3"></i>
                         <h5 class="text-muted" data-i18n="articles.no.articles">暂无文章</h5>
@@ -271,160 +347,321 @@
                             <i class="bi bi-house"></i> <span data-i18n="articles.back.home">返回首页</span>
                         </button>
                     </div>
-                {{ end }}
-            </div>
-        </div>
-
-        <!-- 分页 -->
-        {{ if gt .TotalPages 1 }}
-        <div class="row mt-4">
-            <div class="col-12">
-                <nav aria-label="Page navigation">
-                    <ul class="pagination justify-content-center">
-                        <!-- 首页 -->
-                        {{ if gt .CurrentPage 1 }}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ buildPageURL 1 .SelectedYear .SelectedMonth }}">
-                                <i class="bi bi-chevron-double-left"></i> <span data-i18n="articles.pagination.first">首页</span>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="{{ buildPageURL (sub .CurrentPage 1) .SelectedYear .SelectedMonth }}">
-                                <i class="bi bi-chevron-left"></i> <span data-i18n="articles.pagination.prev">上一页</span>
-                            </a>
-                        </li>
-                        {{ end }}
-
-                        <!-- 页码 -->
-                        {{ $current := .CurrentPage }}
-                        {{ $total := .TotalPages }}
-                        {{ $start := sub $current 2 }}
-                        {{ if lt $start 1 }}{{ $start = 1 }}{{ end }}
-                        {{ $end := add $current 2 }}
-                        {{ if gt $end $total }}{{ $end = $total }}{{ end }}
-
-                        {{ range seq $start $end }}
-                        {{ if eq . $current }}
-                        <li class="page-item active">
-                            <span class="page-link">{{ . }}</span>
-                        </li>
-                        {{ else }}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ buildPageURL . $.SelectedYear $.SelectedMonth }}">{{ . }}</a>
-                        </li>
-                        {{ end }}
-                        {{ end }}
-
-                        <!-- 下一页 -->
-                        {{ if lt .CurrentPage .TotalPages }}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ buildPageURL (add .CurrentPage 1) .SelectedYear .SelectedMonth }}">
-                                <span data-i18n="articles.pagination.next">下一页</span> <i class="bi bi-chevron-right"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="{{ buildPageURL .TotalPages .SelectedYear .SelectedMonth }}">
-                                <span data-i18n="articles.pagination.last">末页</span> <i class="bi bi-chevron-double-right"></i>
-                            </a>
-                        </li>
-                        {{ end }}
+                `;
+                return;
+            }
+            
+            let html = '';
+            articles.forEach(article => {
+                const directory = article.Path.includes('/') ? article.Path.split('/')[0] : '根目录';
+                const isDraft = article.IsDraft;
+                const draftBadge = isDraft ? '<span class="badge bg-warning text-dark me-2" data-i18n="articles.draft.badge">草稿</span>' : '';
+                const draftClass = isDraft ? ' bg-light' : '';
+                
+                html += `
+                    <div class="article-item p-3 border-bottom${draftClass}" data-article="${article.Path}" onclick="handleEditArticle(this)">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-2">
+                                    ${isDraft ? 
+                                        '<i class="bi bi-file-earmark-text text-warning me-2"></i>' : 
+                                        '<i class="bi bi-file-earmark-check text-success me-2"></i>'
+                                    }
+                                    ${draftBadge}
+                                    <span class="article-title">${article.Title || article.Path}</span>
+                                </h6>
+                                <div class="small text-muted mb-1">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    <span>${article.FormattedTime}</span>
+                                    <i class="bi bi-file-earmark ms-3 me-1"></i>
+                                    <span>${formatFileSize(article.Size)}</span>
+                                </div>
+                `;
+                
+                // 显示问题
+                if (article.HasIssues && article.Issues) {
+                    html += `
+                        <div class="small text-danger mt-2">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong data-i18n="articles.issues.detected">发现问题：</strong>
+                            <div class="ms-3 mt-1">
+                    `;
+                    article.Issues.forEach(issue => {
+                        html += `<span class="badge bg-danger me-1 mb-1">${issue}</span>`;
+                    });
+                    html += `</div></div>`;
+                }
+                
+                // 显示摘要
+                if (article.Summary && currentStatus !== 'issues') {
+                    html += `
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-file-text me-1"></i>
+                            <span>${article.Summary}</span>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                                <small class="text-muted">
+                                    <i class="bi bi-folder me-1"></i>
+                                    ${directory}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <button class="btn btn-sm btn-outline-primary me-1" data-article="${article.Path}" onclick="event.stopPropagation(); handleEditArticle(this)">
+                                    <i class="bi bi-pencil"></i> <span data-i18n="articles.edit">编辑</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-article="${article.Path}" onclick="event.stopPropagation(); handleDeleteArticle(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 渲染分页
+        function renderPagination(data) {
+            const container = document.getElementById('paginationContainer');
+            
+            if (data.total_pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = `
+                <div class="col-12">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+            `;
+            
+            // 首页和上一页
+            if (data.has_prev) {
+                html += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(1)">
+                            <i class="bi bi-chevron-double-left"></i> <span data-i18n="articles.pagination.first">首页</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(${data.current_page - 1})">
+                            <i class="bi bi-chevron-left"></i> <span data-i18n="articles.pagination.prev">上一页</span>
+                        </a>
+                    </li>
+                `;
+            }
+            
+            // 页码
+            const start = Math.max(1, data.current_page - 2);
+            const end = Math.min(data.total_pages, data.current_page + 2);
+            
+            for (let i = start; i <= end; i++) {
+                if (i === data.current_page) {
+                    html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+                } else {
+                    html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${i})">${i}</a></li>`;
+                }
+            }
+            
+            // 下一页和末页
+            if (data.has_next) {
+                html += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(${data.current_page + 1})">
+                            <span data-i18n="articles.pagination.next">下一页</span> <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(${data.total_pages})">
+                            <span data-i18n="articles.pagination.last">末页</span> <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                `;
+            }
+            
+            html += `
                     </ul>
                 </nav>
             </div>
-        </div>
-        {{ end }}
-
-        <!-- 项目信息 -->
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong data-i18n="articles.current.project">当前Hugo项目：</strong> {{ .HugoProjectPath }}
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // 更新分页信息
+        function updatePaginationInfo(data) {
+            const info = document.getElementById('paginationInfo');
+            const start = (data.current_page - 1) * data.page_size + 1;
+            const end = Math.min(data.current_page * data.page_size, data.total_articles);
+            
+            info.textContent = `显示 ${start} - ${end} / ${data.total_articles} 项`;
+        }
+        
+        // 更新搜索结果提示
+        function updateSearchResultAlert() {
+            const alert = document.getElementById('searchResultAlert');
+            const text = document.getElementById('searchResultText');
+            
+            if (currentSearch) {
+                text.textContent = `"${currentSearch}"`;
+                alert.style.display = 'block';
+            } else {
+                alert.style.display = 'none';
+            }
+        }
+        
+        // 显示加载状态
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('articleListCard').style.display = 'none';
+        }
+        
+        // 隐藏加载状态
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('articleListCard').style.display = 'block';
+        }
+        
+        // 显示错误
+        function showError(message) {
+            const container = document.getElementById('articleListContainer');
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+                    <h5 class="text-danger">加载失败</h5>
+                    <p class="text-muted">${message}</p>
+                    <button class="btn btn-primary" onclick="loadArticles()">
+                        <i class="bi bi-arrow-clockwise"></i> 重新加载
+                    </button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    
-    <script>
+            `;
+        }
+        
+        // 设置活动tab
+        function setActiveTab(status) {
+            // 移除所有active类
+            document.querySelectorAll('#articleTabs .nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 设置对应tab为active
+            let activeTab = 'published-tab';
+            if (status === 'draft') activeTab = 'draft-tab';
+            else if (status === 'issues') activeTab = 'issues-tab';
+            
+            document.getElementById(activeTab).classList.add('active');
+        }
+        
         // 切换Tab
         function switchTab(status) {
-            let url = '/articles?page=1';
-            if (status && status !== 'published') {
-                url += '&status=' + status;
-            }
-            location.href = url;
-        }
-
-        // 应用筛选
-        function applyFilter() {
-            const year = document.getElementById('yearFilter').value;
-            const month = document.getElementById('monthFilter').value;
-            const search = document.getElementById('searchInput').value;
+            if (currentStatus === status) return;
             
-            let url = '/articles?page=1';
-            {{ if .SelectedStatus }}
-            url += '&status={{ .SelectedStatus }}';
-            {{ end }}
-            if (year) url += '&year=' + year;
-            if (month) url += '&month=' + month;
-            if (search) url += '&search=' + encodeURIComponent(search);
-            
-            location.href = url;
+            currentStatus = status;
+            currentPage = 1;
+            setActiveTab(status);
+            updateURL();
+            loadArticles();
         }
-
+        
+        // 跳转到指定页面
+        function goToPage(page) {
+            if (page === currentPage) return;
+            
+            currentPage = page;
+            updateURL();
+            loadArticles();
+        }
+        
         // 执行搜索
         function performSearch() {
-            const search = document.getElementById('searchInput').value.trim();
-            const year = document.getElementById('yearFilter').value;
-            const month = document.getElementById('monthFilter').value;
+            const searchValue = document.getElementById('searchInput').value.trim();
+            const yearValue = document.getElementById('yearFilter').value;
+            const monthValue = document.getElementById('monthFilter').value;
             
-            let url = '/articles?page=1';
-            {{ if .SelectedStatus }}
-            url += '&status={{ .SelectedStatus }}';
-            {{ end }}
-            if (search) url += '&search=' + encodeURIComponent(search);
-            if (year) url += '&year=' + year;
-            if (month) url += '&month=' + month;
+            currentSearch = searchValue;
+            currentYear = yearValue;
+            currentMonth = monthValue;
+            currentPage = 1;
             
-            location.href = url;
+            updateURL();
+            loadArticles();
         }
-
+        
         // 清除搜索
         function clearSearch() {
-            let url = '/articles?page=1';
-            {{ if .SelectedStatus }}
-            url += '&status={{ .SelectedStatus }}';
-            {{ end }}
-            location.href = url;
+            document.getElementById('searchInput').value = '';
+            currentSearch = '';
+            currentPage = 1;
+            
+            updateURL();
+            loadArticles();
         }
-
-        // 处理搜索框回车键
-        function handleSearchKeyPress(event) {
-            if (event.key === 'Enter') {
-                performSearch();
-            }
+        
+        // 应用筛选
+        function applyFilter() {
+            performSearch();
         }
-
+        
         // 清除所有筛选
         function clearAllFilters() {
-            let url = '/articles?page=1';
-            {{ if .SelectedStatus }}
-            url += '&status={{ .SelectedStatus }}';
-            {{ end }}
-            location.href = url;
+            document.getElementById('searchInput').value = '';
+            document.getElementById('yearFilter').value = '';
+            document.getElementById('monthFilter').value = '';
+            
+            currentSearch = '';
+            currentYear = '';
+            currentMonth = '';
+            currentPage = 1;
+            
+            updateURL();
+            loadArticles();
+        }
+        
+        // 更新URL
+        function updateURL() {
+            const params = new URLSearchParams();
+            params.set('page', currentPage);
+            
+            if (currentStatus && currentStatus !== 'published') {
+                params.set('status', currentStatus);
+            }
+            if (currentSearch) params.set('search', currentSearch);
+            if (currentYear) params.set('year', currentYear);
+            if (currentMonth) params.set('month', currentMonth);
+            
+            const newURL = '/articles?' + params.toString();
+            window.history.replaceState({}, '', newURL);
+        }
+        
+        // 处理编辑文章按钮点击
+        function handleEditArticle(elem) {
+            const path = elem.getAttribute('data-article');
+            editArticle(path);
         }
 
+        // 处理删除文章按钮点击
+        function handleDeleteArticle(elem) {
+            const path = elem.getAttribute('data-article');
+            deleteArticle(path);
+        }
+        
         // 编辑文章
         function editArticle(articlePath) {
             const editorUrl = '/files/edit?file=' + encodeURIComponent(articlePath);
             window.open(editorUrl, '_blank');
         }
-
+        
         // 删除文章
         function deleteArticle(articlePath) {
-            if (confirm(getTranslation('articles.delete.confirm', '确定要删除这篇文章吗？文章将移至回收站。') + '\n\n' + articlePath)) {
+            const confirmMsg = window.getTranslation ? 
+                window.getTranslation('articles.delete.confirm', '确定要删除这篇文章吗？文章将移至回收站。') : 
+                '确定要删除这篇文章吗？文章将移至回收站。';
+                
+            if (confirm(confirmMsg + '\n\n' + articlePath)) {
                 fetch('/api/delete-article', {
                     method: 'POST',
                     headers: {
@@ -437,20 +674,32 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        alert(getTranslation('articles.delete.failed', '删除失败') + ': ' + data.error);
+                        const failedMsg = window.getTranslation ? 
+                            window.getTranslation('articles.delete.failed', '删除失败') : 
+                            '删除失败';
+                        alert(failedMsg + ': ' + data.error);
                         return;
                     }
                     
-                    alert(getTranslation('articles.delete.success', '文章已移至回收站'));
-                    location.reload();
+                    const successMsg = window.getTranslation ? 
+                        window.getTranslation('articles.delete.success', '文章已移至回收站') : 
+                        '文章已移至回收站';
+                    alert(successMsg);
+                    
+                    // 重新加载统计数据和文章列表
+                    loadArticleStats();
+                    loadArticles();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert(getTranslation('articles.delete.error', '删除失败') + ': ' + error.message);
+                    const errorMsg = window.getTranslation ? 
+                        window.getTranslation('articles.delete.error', '删除失败') : 
+                        '删除失败';
+                    alert(errorMsg + ': ' + error.message);
                 });
             }
         }
-
+        
         // 格式化文件大小
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 B';
@@ -459,16 +708,7 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         }
-
-        // 构建分页URL
-        function buildPageURL(page, year, month) {
-            let url = '/articles?page=' + page;
-            if (year) url += '&year=' + year;
-            if (month) url += '&month=' + month;
-            return url;
-        }
     </script>
-    <script src="/static/js/i18n.js"></script>
 </body>
 </html>
 {{ end }}

@@ -472,11 +472,12 @@ func (c *SSHClient) transferFilesConcurrentlyWithServer(ctx context.Context, tas
 	
 	// 进度跟踪
 	var completedCount int32 = 0
+	var failedCount int32 = 0
 	totalTasks := len(tasks)
 	
 	// 创建工作池
 	taskChan := make(chan FileTask, len(tasks))
-	errorChan := make(chan error, maxConcurrency)
+	failedTasks := make(chan FileTask, len(tasks)) // 失败的任务用于重试
 	pauseChan := make(chan struct{}, 1)
 	var wg sync.WaitGroup
 	
@@ -536,33 +537,49 @@ func (c *SSHClient) transferFilesConcurrentlyWithServer(ctx context.Context, tas
 				
 				err := c.uploadSingleFile(task)
 				if err != nil {
-					select {
-					case errorChan <- fmt.Errorf("传输失败 %s: %v", task.RemoteFile, err):
-					default:
+					// 记录失败，但不中断上传过程
+					atomic.AddInt32(&failedCount, 1)
+					fmt.Printf("[Worker %d] 文件上传失败: %s -> %s, 错误: %v\n", 
+						workerID+1, task.LocalFile, task.RemoteFile, err)
+					
+					// 广播错误信息到前端日志
+					errorMsg := fmt.Sprintf("文件上传失败: %s", filepath.Base(task.RemoteFile))
+					if serverID != "" && serverName != "" {
+						BroadcastMultiServerProgress(serverID, serverName, "deploy", "deploying",
+							errorMsg, 0, 0, 0, "")
+					} else {
+						BroadcastProgress("deploy", "deploying", errorMsg, 0, 0, 0, "")
 					}
-					return
-				}
-				
-				// 标记任务为已完成并更新计数
-				// 注意：如果文件不存在，uploadSingleFile会删除记录并返回nil
-				// 这种情况下我们也要标记为完成并更新计数
-				c.markTaskCompleted(task)
-				completed := atomic.AddInt32(&completedCount, 1)
-				
-				// 广播进度更新
-				progress = int(float64(completed) / float64(totalTasks) * 100)
-				if serverID != "" && serverName != "" {
-					BroadcastMultiServerDeployProgress(serverID, serverName,
-						fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
-						progress, totalTasks, int(completed), "")
+					
+					// 将失败的任务加入重试队列
+					select {
+					case failedTasks <- task:
+						fmt.Printf("[Worker %d] 已将失败任务加入重试队列: %s\n", workerID+1, task.RemoteFile)
+					default:
+						fmt.Printf("[Worker %d] 重试队列已满，跳过任务: %s\n", workerID+1, task.RemoteFile)
+					}
+					
+					// 继续处理下一个文件，不要return
 				} else {
-					BroadcastDeployProgress(
-						fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
-						progress,
-						totalTasks,
-						int(completed),
-						"",
-					)
+					// 成功上传，标记任务为已完成
+					c.markTaskCompleted(task)
+					completed := atomic.AddInt32(&completedCount, 1)
+					
+					// 广播进度更新
+					progress := int(float64(completed) / float64(totalTasks) * 100)
+					if serverID != "" && serverName != "" {
+						BroadcastMultiServerDeployProgress(serverID, serverName,
+							fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
+							progress, totalTasks, int(completed), "")
+					} else {
+						BroadcastDeployProgress(
+							fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
+							progress,
+							totalTasks,
+							int(completed),
+							"",
+						)
+					}
 				}
 			}
 		}(i)
@@ -601,13 +618,154 @@ func (c *SSHClient) transferFilesConcurrentlyWithServer(ctx context.Context, tas
 		return ctx.Err()
 	}
 	
-	// 检查是否有错误
-	select {
-	case err := <-errorChan:
-		return err
-	default:
-		return nil
+	// 关闭失败任务通道
+	close(failedTasks)
+	
+	// 收集失败的任务进行重试
+	var retryTasks []FileTask
+	for failedTask := range failedTasks {
+		retryTasks = append(retryTasks, failedTask)
 	}
+	
+	completed := atomic.LoadInt32(&completedCount)
+	failed := atomic.LoadInt32(&failedCount)
+	
+	fmt.Printf("上传完成统计: 成功 %d 个，失败 %d 个，总计 %d 个文件\n", completed, failed, totalTasks)
+	
+	// 如果有失败的任务，尝试重试一次
+	if len(retryTasks) > 0 && failed > 0 {
+		fmt.Printf("开始重试 %d 个失败的文件...\n", len(retryTasks))
+		
+		// 广播重试开始消息
+		if serverID != "" && serverName != "" {
+			BroadcastMultiServerProgress(serverID, serverName, "deploy", "deploying",
+				fmt.Sprintf("开始重试 %d 个失败的文件", len(retryTasks)), 0, 0, 0, "")
+		}
+		
+		retryErr := c.retryFailedTasks(ctx, retryTasks, serverID, serverName)
+		if retryErr != nil {
+			fmt.Printf("重试过程中发生错误: %v\n", retryErr)
+		}
+	}
+	
+	// 生成最终的上传报告
+	totalCompleted := completed
+	totalFailed := failed
+	
+	// 如果进行了重试，更新统计
+	if len(retryTasks) > 0 && failed > 0 {
+		// 重新获取失败和成功的数据（重试完成后）
+		totalFailed = int32(len(retryTasks))
+		// 简单假设重试会有一些成功
+		for _, task := range retryTasks {
+			// 检查任务是否在重试后完成
+			if c.isTaskCompleted(task) {
+				totalCompleted++
+				totalFailed--
+			}
+		}
+	}
+	
+	// 广播最终完成消息
+	finalMessage := fmt.Sprintf("上传完成: 成功 %d 个，失败 %d 个", totalCompleted, totalFailed)
+	if totalFailed > 0 {
+		finalMessage += fmt.Sprintf("，请检查日志了解失败详情")
+	}
+	
+	if serverID != "" && serverName != "" {
+		if totalFailed > 0 {
+			BroadcastMultiServerProgress(serverID, serverName, "deploy", "success",
+				finalMessage, 100, totalTasks, int(totalCompleted), "")
+		} else {
+			BroadcastMultiServerComplete(serverID, serverName, "deploy", finalMessage, totalTasks)
+		}
+	} else {
+		if totalFailed > 0 {
+			BroadcastProgress("deploy", "success", finalMessage, 100, totalTasks, int(totalCompleted), "")
+		} else {
+			BroadcastComplete("deploy", finalMessage, totalTasks)
+		}
+	}
+	
+	// 即使有失败的文件，也不返回错误，让上传过程继续
+	return nil
+}
+
+// 检查任务是否已完成
+func (c *SSHClient) isTaskCompleted(task FileTask) bool {
+	existingTasks := config.GetUploadTasks()
+	for _, uploadTask := range existingTasks {
+		if uploadTask.LocalFile == task.LocalFile && uploadTask.RemoteFile == task.RemoteFile {
+			return uploadTask.Completed
+		}
+	}
+	// 如果找不到任务记录，可能已经被删除（表示完成）
+	return true
+}
+
+// 重试失败的任务
+func (c *SSHClient) retryFailedTasks(ctx context.Context, failedTasks []FileTask, serverID, serverName string) error {
+	const maxRetries = 1 // 最多重试1次
+	var retrySuccessCount int32 = 0
+	var retryFailedCount int32 = 0
+	
+	fmt.Printf("开始重试 %d 个失败的任务...\n", len(failedTasks))
+	
+	for i, task := range failedTasks {
+		// 检查是否被暂停
+		if config.IsDeploymentPaused() {
+			fmt.Printf("重试过程中检测到暂停信号，停止重试\n")
+			return fmt.Errorf("重试已暂停")
+		}
+		
+		fmt.Printf("重试第 %d/%d 个文件: %s\n", i+1, len(failedTasks), task.RemoteFile)
+		
+		// 广播重试进度
+		progress := int(float64(i+1) / float64(len(failedTasks)) * 100)
+		if serverID != "" && serverName != "" {
+			BroadcastMultiServerDeployProgress(serverID, serverName,
+				fmt.Sprintf("重试文件 (%d/%d)", i+1, len(failedTasks)),
+				progress, len(failedTasks), i+1, filepath.Base(task.RemoteFile))
+		}
+		
+		// 重试上传
+		err := c.uploadSingleFile(task)
+		if err != nil {
+			atomic.AddInt32(&retryFailedCount, 1)
+			fmt.Printf("重试失败: %s -> %s, 错误: %v\n", task.LocalFile, task.RemoteFile, err)
+			
+			// 广播重试失败信息
+			retryFailMsg := fmt.Sprintf("重试失败: %s", filepath.Base(task.RemoteFile))
+			if serverID != "" && serverName != "" {
+				BroadcastMultiServerProgress(serverID, serverName, "deploy", "deploying",
+					retryFailMsg, 0, 0, 0, "")
+			} else {
+				BroadcastProgress("deploy", "deploying", retryFailMsg, 0, 0, 0, "")
+			}
+		} else {
+			atomic.AddInt32(&retrySuccessCount, 1)
+			fmt.Printf("重试成功: %s -> %s\n", task.LocalFile, task.RemoteFile)
+			
+			// 标记任务为已完成
+			c.markTaskCompleted(task)
+		}
+		
+		// 添加小延迟，避免过于频繁的重试
+		time.Sleep(100 * time.Millisecond)
+	}
+	
+	successCount := atomic.LoadInt32(&retrySuccessCount)
+	failedCount := atomic.LoadInt32(&retryFailedCount)
+	
+	fmt.Printf("重试完成统计: 重试成功 %d 个，重试失败 %d 个\n", successCount, failedCount)
+	
+	// 广播重试完成消息
+	if serverID != "" && serverName != "" {
+		BroadcastMultiServerProgress(serverID, serverName, "deploy", "deploying",
+			fmt.Sprintf("重试完成: 成功 %d 个，失败 %d 个", successCount, failedCount), 0, 0, 0, "")
+	}
+	
+	return nil
 }
 
 // 标记任务为已完成

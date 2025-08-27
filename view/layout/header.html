@@ -16,6 +16,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "articles"}} active{{end}}" href="/articles">
+                        <i class="bi bi-journal-text"></i> <span data-i18n="nav.articles">博客管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link{{if eq .Page "files"}} active{{end}}" href="/files">
                         <i class="bi bi-folder"></i> <span data-i18n="nav.files">文件管理</span>
                     </a>

@@ -168,6 +168,8 @@ func Start() {
 	r.GET("/", controller.Home)
 	r.POST("/upload", controller.UploadImage)
 	r.GET("/articles", controller.ArticleList)
+	r.GET("/api/articles", controller.GetArticlesAPI)
+	r.GET("/api/articles/stats", controller.GetArticleStatsAPI)
 	r.GET("/article/edit", controller.EditArticle)
 	r.POST("/article/save", controller.SaveArticle)
 	r.GET("/settings", controller.Settings)

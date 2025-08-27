@@ -138,6 +138,9 @@
                 statusBadge.textContent = getStatusText(data.status);
             }
             
+            // 根据状态更新按钮
+            updateButtonsBasedOnStatus(serverId, data.status);
+            
             // 更新进度条
             if (progressContainer && (data.status === 'building' || data.status === 'deploying')) {
                 progressContainer.innerHTML = `
@@ -163,6 +166,44 @@
                         <i class="bi ${iconClass} fs-4"></i>
                     </div>
                 `;
+            }
+        }
+        
+        // 根据状态更新按钮显示
+        function updateButtonsBasedOnStatus(serverId, status) {
+            const row = document.getElementById('server-row-' + serverId);
+            if (!row) return;
+            
+            const deployGroup = row.querySelector('.btn-group[role="group"]:not(.deploy-control-group)');
+            const controlGroup = row.querySelector('.deploy-control-group');
+            const pauseBtn = controlGroup?.querySelector('.pause-btn');
+            const resumeBtn = controlGroup?.querySelector('.resume-btn');
+            
+            if (!controlGroup) return;
+            
+            switch(status) {
+                case 'idle':
+                case 'success':
+                case 'failed':
+                    // 空闲/成功/失败状态：显示部署按钮，隐藏控制按钮
+                    if (deployGroup) deployGroup.style.display = 'inline-block';
+                    controlGroup.style.display = 'none';
+                    break;
+                case 'building':
+                case 'deploying':
+                    // 构建/部署中：显示控制按钮，隐藏部署按钮
+                    if (deployGroup) deployGroup.style.display = 'none';
+                    controlGroup.style.display = 'inline-block';
+                    if (pauseBtn) pauseBtn.style.display = 'inline-block';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
+                    break;
+                case 'paused':
+                    // 暂停状态：显示控制按钮，但只显示继续按钮
+                    if (deployGroup) deployGroup.style.display = 'none';
+                    controlGroup.style.display = 'inline-block';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'inline-block';
+                    break;
             }
         }
         
@@ -395,6 +436,9 @@
                 
                 showNotification(data.message || message, 'info');
                 
+                // 根据操作更新按钮状态
+                updateDeployControlButtons(serverId, action);
+                
                 // 开始轮询状态更新
                 if (action === 'deploy' || action === 'build-deploy' || action === 'resume') {
                     // WebSocket会处理实时更新
@@ -403,6 +447,45 @@
             .catch(error => {
                 alert(action + '失败: ' + error.message);
             });
+        }
+        
+        // 更新部署控制按钮显示状态
+        function updateDeployControlButtons(serverId, action) {
+            const row = document.getElementById('server-row-' + serverId);
+            if (!row) return;
+            
+            const deployGroup = row.querySelector('.btn-group[role="group"]:not(.deploy-control-group)');
+            const controlGroup = row.querySelector('.deploy-control-group');
+            const pauseBtn = controlGroup?.querySelector('.pause-btn');
+            const resumeBtn = controlGroup?.querySelector('.resume-btn');
+            
+            if (!controlGroup) return;
+            
+            switch(action) {
+                case 'deploy':
+                case 'incremental-deploy':
+                case 'build-deploy':
+                case 'incremental-build-deploy':
+                case 'resume':
+                    // 开始部署时，显示控制组，隐藏部署按钮组
+                    if (deployGroup) deployGroup.style.display = 'none';
+                    controlGroup.style.display = 'inline-block';
+                    if (pauseBtn) pauseBtn.style.display = 'inline-block';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
+                    break;
+                case 'pause':
+                    // 暂停时，显示继续按钮，隐藏暂停按钮
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'inline-block';
+                    break;
+                case 'stop':
+                    // 停止时，恢复部署按钮组，隐藏控制组
+                    if (deployGroup) deployGroup.style.display = 'inline-block';
+                    controlGroup.style.display = 'none';
+                    if (pauseBtn) pauseBtn.style.display = 'inline-block';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
+                    break;
+            }
         }
         
         // 加载服务器列表
@@ -500,6 +583,25 @@
                                     onclick="deployServer('${server.id}', true)" 
                                     title="增量上传" disabled>
                                 <i class="bi bi-arrow-up-circle"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 部署控制按钮组 -->
+                        <div class="btn-group deploy-control-group" role="group" style="display: none;">
+                            <button type="button" class="btn btn-sm btn-warning pause-btn" 
+                                    onclick="pauseDeployment('${server.id}')" 
+                                    title="暂停上传">
+                                <i class="bi bi-pause-fill"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-info resume-btn" 
+                                    onclick="resumeDeployment('${server.id}')" 
+                                    title="继续上传" style="display: none;">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger stop-btn" 
+                                    onclick="stopDeployment('${server.id}')" 
+                                    title="停止上传">
+                                <i class="bi bi-stop-fill"></i>
                             </button>
                         </div>
                         ` : ''}

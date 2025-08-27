@@ -290,6 +290,25 @@
                                                         <i class="bi bi-arrow-up-circle"></i>
                                                     </button>
                                                 </div>
+                                                
+                                                <!-- 部署控制按钮组 -->
+                                                <div class="btn-group deploy-control-group" role="group" style="display: none;">
+                                                    <button type="button" class="btn btn-sm btn-warning pause-btn" 
+                                                            onclick="pauseDeployment('{{ .ID }}')" 
+                                                            title="暂停上传">
+                                                        <i class="bi bi-pause-fill"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-info resume-btn" 
+                                                            onclick="resumeDeployment('{{ .ID }}')" 
+                                                            title="继续上传" style="display: none;">
+                                                        <i class="bi bi-play-fill"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-danger stop-btn" 
+                                                            onclick="stopDeployment('{{ .ID }}')" 
+                                                            title="停止上传">
+                                                        <i class="bi bi-stop-fill"></i>
+                                                    </button>
+                                                </div>
                                                 {{ end }}
                                                 
                                                 <!-- 删除按钮 -->

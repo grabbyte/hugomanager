@@ -197,6 +197,7 @@
     "msg.serve.started": "Hugo serve started successfully",
     "msg.serve.stopped": "Hugo serve stopped",
     "nav.back": "Back",
+    "nav.articles": "Blog Management",
     "nav.deploy": "Deploy",
     "nav.files": "Files",
     "nav.home": "Home",

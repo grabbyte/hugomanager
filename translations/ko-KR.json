@@ -139,6 +139,7 @@
     "msg.save.success": "성공적으로 저장됨",
     "msg.serve.started": "Hugo serve가 성공적으로 시작됨",
     "msg.serve.stopped": "Hugo serve가 중지됨",
+    "nav.articles": "블로그 관리",
     "nav.back": "뒤로",
     "nav.deploy": "배포",
     "nav.files": "파일",

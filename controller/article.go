@@ -8,6 +8,7 @@ import (
     "io/fs"
     "io/ioutil"
     "math"
+    "net/http"
     "os"
     "path/filepath"
     "regexp"
@@ -64,108 +65,11 @@ type ArticleInfo struct {
     Date          string
 }
 
-// ArticleList 显示文章列表页面，支持分页、搜索和按时间筛选
+// ArticleList 显示文章列表页面（纯模板，数据通过API获取）
 func ArticleList(c *gin.Context) {
-    // 获取查询参数
-    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-    if page < 1 {
-        page = 1
-    }
-    
-    year, _ := strconv.Atoi(c.Query("year"))
-    month, _ := strconv.Atoi(c.Query("month"))
-    search := strings.TrimSpace(c.Query("search"))
-    status := strings.TrimSpace(c.Query("status")) // "draft" 或空字符串（发布的文章）
-    
-    pageSize := 20 // 每页显示20条记录
-    
-    // 获取所有文章信息
-    articleInfos, err := getAllArticlesWithContent()
-    if err != nil {
-        c.HTML(500, "article/list.html", gin.H{
-            "Title": "文章列表",
-            "Error": err.Error(),
-        })
-        return
-    }
-    
-    // 原始文章总数
-    originalTotal := len(articleInfos)
-    
-    // 按状态筛选（草稿或发布）
-    if status == "draft" {
-        articleInfos = filterArticlesByDraft(articleInfos, true)
-    } else if status == "published" {
-        articleInfos = filterArticlesByDraft(articleInfos, false)
-    } else if status == "issues" {
-        articleInfos = filterArticlesByIssues(articleInfos)
-    }
-    
-    // 按搜索关键词筛选
-    if search != "" {
-        articleInfos = filterArticlesBySearch(articleInfos, search)
-    }
-    
-    // 按时间筛选
-    if year > 0 {
-        articleInfos = filterArticlesByYear(articleInfos, year)
-    }
-    if month > 0 && month <= 12 {
-        articleInfos = filterArticlesByMonth(articleInfos, time.Month(month))
-    }
-    
-    // 计算分页信息
-    totalArticles := len(articleInfos)
-    totalPages := int(math.Ceil(float64(totalArticles) / float64(pageSize)))
-    
-    // 获取当前页的文章
-    start := (page - 1) * pageSize
-    end := start + pageSize
-    if end > totalArticles {
-        end = totalArticles
-    }
-    
-    var currentPageArticles []ArticleInfo
-    if start < totalArticles {
-        currentPageArticles = articleInfos[start:end]
-    }
-    
-    // 获取可用的年份列表（基于原始文章列表）
-    allArticles, _ := getAllArticlesWithContent()
-    availableYears := getAvailableYears(allArticles)
-    
-    // 统计草稿、发布文章和有问题文章数量
-    draftCount := 0
-    publishedCount := 0
-    issuesCount := 0
-    for _, article := range allArticles {
-        if article.IsDraft {
-            draftCount++
-        } else {
-            publishedCount++
-        }
-        if article.HasIssues {
-            issuesCount++
-        }
-    }
-    
     c.HTML(200, "article/list.html", gin.H{
-        "Title":              "文章列表",
-        "Articles":           currentPageArticles,
-        "CurrentPage":        page,
-        "TotalPages":         totalPages,
-        "TotalArticles":      totalArticles,
-        "OriginalTotal":      originalTotal,
-        "DraftCount":         draftCount,
-        "PublishedCount":     publishedCount,
-        "IssuesCount":        issuesCount,
-        "PageSize":           pageSize,
-        "SelectedYear":       year,
-        "SelectedMonth":      month,
-        "SelectedStatus":     status,
-        "SearchKeyword":      search,
-        "AvailableYears":     availableYears,
-        "HugoProjectPath":    config.GetHugoProjectPath(),
+        "Title": "文章列表",
+        "Page":  "articles",
     })
 }
 
@@ -719,4 +623,121 @@ func filterArticlesByIssues(articles []ArticleInfo) []ArticleInfo {
         }
     }
     return filtered
+}
+
+// GetArticlesAPI 通过API返回文章列表数据
+func GetArticlesAPI(c *gin.Context) {
+    // 获取查询参数
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    if page < 1 {
+        page = 1
+    }
+    
+    pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+    if pageSize < 1 || pageSize > 100 {
+        pageSize = 20
+    }
+    
+    year, _ := strconv.Atoi(c.Query("year"))
+    month, _ := strconv.Atoi(c.Query("month"))
+    search := strings.TrimSpace(c.Query("search"))
+    status := strings.TrimSpace(c.Query("status"))
+    
+    // 获取所有文章信息
+    articleInfos, err := getAllArticlesWithContent()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+        })
+        return
+    }
+    
+    
+    // 按状态筛选
+    if status == "draft" {
+        articleInfos = filterArticlesByDraft(articleInfos, true)
+    } else if status == "published" {
+        articleInfos = filterArticlesByDraft(articleInfos, false)
+    } else if status == "issues" {
+        articleInfos = filterArticlesByIssues(articleInfos)
+    }
+    
+    // 按搜索关键词筛选
+    if search != "" {
+        articleInfos = filterArticlesBySearch(articleInfos, search)
+    }
+    
+    // 按时间筛选
+    if year > 0 {
+        articleInfos = filterArticlesByYear(articleInfos, year)
+    }
+    if month > 0 && month <= 12 {
+        articleInfos = filterArticlesByMonth(articleInfos, time.Month(month))
+    }
+    
+    // 计算分页信息
+    totalArticles := len(articleInfos)
+    totalPages := int(math.Ceil(float64(totalArticles) / float64(pageSize)))
+    
+    // 获取当前页的文章
+    start := (page - 1) * pageSize
+    end := start + pageSize
+    if end > totalArticles {
+        end = totalArticles
+    }
+    
+    var currentPageArticles []ArticleInfo
+    if start < totalArticles {
+        currentPageArticles = articleInfos[start:end]
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "articles":       currentPageArticles,
+        "current_page":   page,
+        "total_pages":    totalPages,
+        "total_articles": totalArticles,
+        "page_size":      pageSize,
+        "has_next":       page < totalPages,
+        "has_prev":       page > 1,
+    })
+}
+
+// GetArticleStatsAPI 通过API返回文章统计信息
+func GetArticleStatsAPI(c *gin.Context) {
+    // 获取所有文章信息
+    allArticles, err := getAllArticlesWithContent()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+        })
+        return
+    }
+    
+    // 统计各种状态的文章数量
+    draftCount := 0
+    publishedCount := 0
+    issuesCount := 0
+    
+    for _, article := range allArticles {
+        if article.IsDraft {
+            draftCount++
+        } else {
+            publishedCount++
+        }
+        if article.HasIssues {
+            issuesCount++
+        }
+    }
+    
+    // 获取可用年份
+    availableYears := getAvailableYears(allArticles)
+    
+    c.JSON(http.StatusOK, gin.H{
+        "total_articles":   len(allArticles),
+        "draft_count":      draftCount,
+        "published_count":  publishedCount,
+        "issues_count":     issuesCount,
+        "available_years":  availableYears,
+        "hugo_project_path": config.GetHugoProjectPath(),
+    })
 }

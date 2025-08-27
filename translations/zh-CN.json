@@ -196,6 +196,7 @@
     "msg.save.success": "保存成功",
     "msg.serve.started": "Hugo serve启动成功",
     "msg.serve.stopped": "Hugo serve已停止",
+    "nav.articles": "博客管理",
     "nav.back": "返回",
     "nav.deploy": "部署管理",
     "nav.files": "文件管理",
