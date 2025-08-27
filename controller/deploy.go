@@ -779,7 +779,13 @@ func StartHugoServe(c *gin.Context) {
 
 	hugoManager := utils.GetHugoServeManager()
 	if err := hugoManager.Start(request.Port); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		// 获取详细的状态信息，包括错误输出
+		status := hugoManager.GetStatus()
+		c.JSON(500, gin.H{
+			"error":  err.Error(),
+			"output": status["output"],
+			"stderr": status["error"],
+		})
 		return
 	}
 
@@ -1068,7 +1074,7 @@ func DeployToMultiServer(c *gin.Context) {
 		}
 
 		// 执行部署
-		result, err := utils.ExecuteDeployment(sshConfig, publicDir, server.RemotePath, false)
+		result, err := utils.ExecuteDeploymentWithServer(sshConfig, publicDir, server.RemotePath, false, serverID, server.Name)
 
 		if err != nil || !result.Success {
 			config.UpdateServerDeploymentStatus(serverID, config.ServerDeploymentStatus{
@@ -1168,7 +1174,7 @@ func BuildAndDeployToMultiServer(c *gin.Context) {
 		}
 
 		// 执行部署
-		result, err := utils.ExecuteDeployment(sshConfig, publicDir, server.RemotePath, false)
+		result, err := utils.ExecuteDeploymentWithServer(sshConfig, publicDir, server.RemotePath, false, serverID, server.Name)
 
 		if err != nil || !result.Success {
 			config.UpdateServerDeploymentStatus(serverID, config.ServerDeploymentStatus{
@@ -1325,7 +1331,7 @@ func IncrementalDeployToMultiServer(c *gin.Context) {
 		}
 
 		// 执行增量部署
-		result, err := utils.ExecuteDeployment(sshConfig, publicDir, server.RemotePath, true)
+		result, err := utils.ExecuteDeploymentWithServer(sshConfig, publicDir, server.RemotePath, true, serverID, server.Name)
 
 		if err != nil || !result.Success {
 			config.UpdateServerDeploymentStatus(serverID, config.ServerDeploymentStatus{
@@ -1425,7 +1431,7 @@ func IncrementalBuildAndDeployToMultiServer(c *gin.Context) {
 		}
 
 		// 执行增量部署
-		result, err := utils.ExecuteDeployment(sshConfig, publicDir, server.RemotePath, true)
+		result, err := utils.ExecuteDeploymentWithServer(sshConfig, publicDir, server.RemotePath, true, serverID, server.Name)
 
 		if err != nil || !result.Success {
 			config.UpdateServerDeploymentStatus(serverID, config.ServerDeploymentStatus{

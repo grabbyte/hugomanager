@@ -7,6 +7,10 @@
         // 模态框实例
         let serverConfigModal;
         
+        // 全局构建状态
+        let isBuilt = false;
+        let isBuilding = false;
+        
         document.addEventListener('DOMContentLoaded', function() {
             serverConfigModal = new bootstrap.Modal(document.getElementById('serverConfigModal'));
             
@@ -31,6 +35,9 @@
             
             // 初始化WebSocket连接
             connectWebSocket();
+            
+            // 初始加载服务器列表
+            loadServerList();
             
             // 定时刷新服务器状态
             setInterval(refreshServerStatuses, 5000);
@@ -141,7 +148,11 @@
                             ${data.progress}%
                         </div>
                     </div>
-                    ${data.speed ? `<div class="small text-muted mt-1"><i class="bi bi-speedometer2"></i> ${data.speed}</div>` : ''}
+                    <div class="small text-muted mt-1">
+                        ${data.current_file ? `<div><i class="bi bi-file-earmark"></i> ${data.current_file}</div>` : ''}
+                        ${data.current && data.total ? `<div><i class="bi bi-list-ol"></i> ${data.current}/${data.total} 文件</div>` : ''}
+                        ${data.speed ? `<div><i class="bi bi-speedometer2"></i> ${data.speed}</div>` : ''}
+                    </div>
                 `;
             } else if (progressContainer) {
                 const iconClass = data.status === 'success' ? 'bi-check-circle-fill text-success' :
@@ -284,7 +295,7 @@
                 
                 alert(data.message);
                 serverConfigModal.hide();
-                location.reload();
+                loadServerList(); // 重新加载服务器列表
             })
             .catch(error => {
                 alert('保存失败: ' + error.message);
@@ -308,7 +319,7 @@
                 }
                 
                 alert(data.message);
-                location.reload();
+                loadServerList(); // 重新加载服务器列表
             })
             .catch(error => {
                 alert('删除失败: ' + error.message);
@@ -341,14 +352,14 @@
             });
         }
         
-        // 部署到服务器
+        // 部署到服务器（恢复旧版本）
         function deployServer(serverId, incremental = false) {
             const action = incremental ? 'incremental-deploy' : 'deploy';
             const message = incremental ? '正在增量部署...' : '正在全量部署...';
             updateServerAction(serverId, action, message);
         }
         
-        // 构建并部署
+        // 构建并部署（恢复旧版本）
         function buildAndDeploy(serverId, incremental = false) {
             const action = incremental ? 'incremental-build-deploy' : 'build-deploy';
             const message = incremental ? '正在构建和增量部署...' : '正在构建和全量部署...';
@@ -392,6 +403,133 @@
             .catch(error => {
                 alert(action + '失败: ' + error.message);
             });
+        }
+        
+        // 加载服务器列表
+        function loadServerList() {
+            fetch('/api/multi-deploy/servers')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.servers && data.servers.length > 0) {
+                        updateServerTable(data.servers);
+                        document.querySelector('.badge.bg-primary').textContent = data.servers.length;
+                    } else {
+                        showEmptyServerTable();
+                    }
+                })
+                .catch(error => {
+                    console.error('加载服务器列表失败:', error);
+                    showEmptyServerTable();
+                });
+        }
+        
+        // 更新服务器表格
+        function updateServerTable(servers) {
+            const tbody = document.querySelector('.server-table tbody');
+            tbody.innerHTML = '';
+            
+            servers.forEach(server => {
+                const row = createServerRow(server);
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 创建服务器行
+        function createServerRow(server) {
+            const tr = document.createElement('tr');
+            tr.className = 'server-row';
+            tr.id = 'server-row-' + server.id;
+            
+            tr.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="status-icon status-idle"></div>
+                        <div>
+                            <strong>${server.name}</strong>
+                            ${!server.enabled ? '<span class="badge bg-secondary ms-2">已禁用</span>' : ''}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    ${server.domain ? 
+                        `<a href="https://${server.domain}" target="_blank" class="text-decoration-none">
+                            ${server.domain} <i class="bi bi-box-arrow-up-right"></i>
+                        </a>` : 
+                        '<span class="text-muted">-</span>'
+                    }
+                </td>
+                <td>
+                    <code>${server.host}:${server.port}</code>
+                </td>
+                <td>
+                    <span class="badge status-badge bg-secondary">空闲</span>
+                    <div class="small text-muted mt-1">等待部署</div>
+                </td>
+                <td>
+                    <div class="progress-container">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-dash-circle text-muted fs-4"></i>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="server-actions">
+                        <!-- 配置按钮 -->
+                        <button class="btn btn-sm btn-outline-primary" 
+                                onclick="showConfigModal('${server.id}')" 
+                                title="配置服务器">
+                            <i class="bi bi-gear"></i>
+                        </button>
+                        
+                        ${server.enabled ? `
+                        <!-- 测试连接 -->
+                        <button class="btn btn-sm btn-outline-info" 
+                                onclick="testConnection('${server.id}')" 
+                                title="测试连接">
+                            <i class="bi bi-wifi"></i>
+                        </button>
+                        
+                        <!-- 上传按钮组 -->
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-success deploy-btn" 
+                                    onclick="deployServer('${server.id}', false)" 
+                                    title="全量上传" disabled>
+                                <i class="bi bi-upload"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success deploy-btn" 
+                                    onclick="deployServer('${server.id}', true)" 
+                                    title="增量上传" disabled>
+                                <i class="bi bi-arrow-up-circle"></i>
+                            </button>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- 删除按钮 -->
+                        <button class="btn btn-sm btn-outline-danger" 
+                                onclick="deleteServer('${server.id}')" 
+                                title="删除服务器">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            
+            return tr;
+        }
+        
+        // 显示空服务器表格
+        function showEmptyServerTable() {
+            const tbody = document.querySelector('.server-table tbody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-server fs-1 mb-3 d-block"></i>
+                        <div>暂无服务器配置</div>
+                        <small>点击"添加服务器"按钮创建第一个部署目标</small>
+                    </td>
+                </tr>
+            `;
+            document.querySelector('.badge.bg-primary').textContent = '0';
         }
         
         // 刷新服务器状态
@@ -475,31 +613,130 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 构建中...';
             
+            isBuilding = true;
+            isBuilt = false;
+            updateBuildStatus('构建中...', 'warning');
+            updateDeployButtons(false); // 禁用所有部署按钮
+            
             addToLog('INFO: 开始Hugo构建...', 'info');
             
             fetch('/api/build-hugo', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    addToLog('ERROR: Hugo构建失败 - ' + data.error, 'error');
+                    let errorMsg = 'Hugo构建失败 - ' + data.error;
+                    addToLog('ERROR: ' + errorMsg, 'error');
+                    
+                    // 如果有详细输出，也显示出来
+                    if (data.output && data.output.trim()) {
+                        addToLog('构建输出:\n' + data.output, 'warning');
+                    }
+                    
                     showNotification('构建失败: ' + data.error, 'error');
+                    isBuilt = false;
+                    updateBuildStatus('构建失败', 'danger');
                 } else {
                     addToLog('SUCCESS: Hugo构建成功', 'success');
+                    
+                    // 显示构建输出
+                    if (data.output && data.output.trim()) {
+                        addToLog('构建输出:\n' + data.output, 'info');
+                    }
+                    
                     showNotification('构建成功: ' + data.message, 'success');
+                    isBuilt = true;
+                    updateBuildStatus('构建完成', 'success');
+                    updateDeployButtons(true); // 启用所有部署按钮
                 }
             })
             .catch(error => {
                 addToLog('ERROR: Hugo构建失败 - ' + error.message, 'error');
                 showNotification('构建失败: ' + error.message, 'error');
+                isBuilt = false;
+                updateBuildStatus('构建失败', 'danger');
             })
             .finally(() => {
+                isBuilding = false;
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-play-fill"></i> 构建站点';
+                btn.innerHTML = '<i class="bi bi-hammer"></i> 构建站点';
             });
         }
 
         function cleanAndBuild() {
             buildHugo(); // 简化为直接构建
+        }
+        
+        // 更新构建状态显示
+        function updateBuildStatus(message, type = 'secondary') {
+            const statusElement = document.getElementById('buildStatus');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.className = `text-center text-${type}`;
+            }
+        }
+        
+        // 更新所有部署按钮状态
+        function updateDeployButtons(enabled) {
+            // 更新单个服务器的部署按钮
+            document.querySelectorAll('.deploy-btn').forEach(btn => {
+                btn.disabled = !enabled;
+            });
+            
+            // 更新批量部署按钮
+            const deployAllBtn = document.getElementById('deployAllBtn');
+            const deployAllIncBtn = document.getElementById('deployAllIncBtn');
+            if (deployAllBtn) deployAllBtn.disabled = !enabled;
+            if (deployAllIncBtn) deployAllIncBtn.disabled = !enabled;
+            
+            // 更新提示文字
+            const hint = document.querySelector('.col-lg-2 .small.text-muted');
+            if (hint) {
+                hint.textContent = enabled ? '可以部署' : '需先构建';
+            }
+        }
+        
+        // 批量部署到所有启用的服务器
+        function deployAllServers(isIncremental) {
+            if (!isBuilt) {
+                showNotification('请先完成Hugo构建', 'warning');
+                return;
+            }
+            
+            const servers = getEnabledServers();
+            if (servers.length === 0) {
+                showNotification('没有启用的服务器', 'warning');
+                return;
+            }
+            
+            const action = isIncremental ? '增量部署' : '全量部署';
+            const confirmMsg = `确定要对 ${servers.length} 个服务器进行${action}吗？`;
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            addToLog(`INFO: 开始批量${action}到 ${servers.length} 个服务器`, 'info');
+            showNotification(`开始批量${action}`, 'info');
+            
+            // 同时向所有服务器发起部署
+            servers.forEach(server => {
+                deployServer(server.id, isIncremental, false); // false = 不显示确认对话框
+            });
+        }
+        
+        // 获取启用的服务器列表
+        function getEnabledServers() {
+            // 从当前显示的表格中获取启用的服务器
+            const enabledServers = [];
+            document.querySelectorAll('.server-row').forEach(row => {
+                const serverId = row.id.replace('server-row-', '');
+                const isDisabled = row.querySelector('.badge.bg-secondary');
+                if (!isDisabled) {
+                    const serverName = row.querySelector('strong').textContent;
+                    enabledServers.push({ id: serverId, name: serverName });
+                }
+            });
+            return enabledServers;
         }
         
         // Hugo Serve 控制函数
@@ -512,11 +749,27 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    showNotification('启动失败: ' + data.error, 'error');
+                    let errorMsg = '启动失败: ' + data.error;
+                    addToLog('ERROR: ' + errorMsg, 'error');
+                    
+                    // 显示详细的错误输出
+                    if (data.stderr && data.stderr.trim()) {
+                        addToLog('Hugo Serve错误输出:\n' + data.stderr, 'error');
+                    }
+                    if (data.output && data.output.trim()) {
+                        addToLog('Hugo Serve标准输出:\n' + data.output, 'warning');
+                    }
+                    
+                    showNotification(errorMsg, 'error');
                 } else {
+                    addToLog('SUCCESS: Hugo serve启动成功', 'success');
                     showNotification(data.message, 'success');
                     setTimeout(() => location.reload(), 1000);
                 }
+            })
+            .catch(error => {
+                addToLog('ERROR: 启动Hugo serve失败 - ' + error.message, 'error');
+                showNotification('启动失败: ' + error.message, 'error');
             });
         }
         
@@ -525,11 +778,18 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    showNotification('重启失败: ' + data.error, 'error');
+                    let errorMsg = '重启失败: ' + data.error;
+                    addToLog('ERROR: ' + errorMsg, 'error');
+                    showNotification(errorMsg, 'error');
                 } else {
+                    addToLog('SUCCESS: Hugo serve重启成功', 'success');
                     showNotification(data.message, 'success');
                     setTimeout(() => location.reload(), 1000);
                 }
+            })
+            .catch(error => {
+                addToLog('ERROR: 重启Hugo serve失败 - ' + error.message, 'error');
+                showNotification('重启失败: ' + error.message, 'error');
             });
         }
         
@@ -538,11 +798,18 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    showNotification('停止失败: ' + data.error, 'error');
+                    let errorMsg = '停止失败: ' + data.error;
+                    addToLog('ERROR: ' + errorMsg, 'error');
+                    showNotification(errorMsg, 'error');
                 } else {
+                    addToLog('SUCCESS: Hugo serve已停止', 'success');
                     showNotification(data.message, 'success');
                     setTimeout(() => location.reload(), 1000);
                 }
+            })
+            .catch(error => {
+                addToLog('ERROR: 停止Hugo serve失败 - ' + error.message, 'error');
+                showNotification('停止失败: ' + error.message, 'error');
             });
         }
         

@@ -35,26 +35,35 @@
             </div>
         </div>
 
-        <!-- 站点构建和预览功能区域 -->
+        <!-- 全局构建和控制区域 -->
         <div class="row mb-4">
-            <div class="col-lg-3">
-                <h5 class="mb-3">构建功能</h5>
+            <div class="col-lg-2">
+                <h5 class="mb-3">构建控制</h5>
                 <div class="card action-card">
                     <div class="card-body">
-                        <div class="d-grid gap-2 mb-3">
-                            <button class="btn btn-success btn-sm" onclick="buildHugo()">
-                                <i class="bi bi-play-fill"></i> 构建站点
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="cleanAndBuild()">
-                                <i class="bi bi-arrow-clockwise"></i> 清理构建
-                            </button>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <button class="btn btn-success btn-sm w-100" onclick="buildHugo()" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-hammer"></i><br>
+                                    <small>构建</small>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-primary btn-sm w-100" onclick="cleanAndBuild()" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-arrow-clockwise"></i><br>
+                                    <small>清理</small>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="small text-muted">
+                            <div id="buildStatus" class="text-center">等待构建</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-3">
-                <h5 class="mb-3">预览功能</h5>
+            <div class="col-lg-2">
+                <h5 class="mb-3">预览服务</h5>
                 <div class="card action-card">
                     <div class="card-body">
                         <div class="mb-2 d-flex align-items-center">
@@ -70,16 +79,59 @@
                             </a>
                         </div>
                         {{ end }}
-                        <div class="d-grid">
+                        <div class="row g-2">
                             {{ if and .Hugo (eq .Hugo.Status "running") }}
-                            <button class="btn btn-outline-warning btn-sm" onclick="stopHugoServe()">
-                                <i class="bi bi-stop-fill"></i> 停止
-                            </button>
+                            <div class="col-6">
+                                <button class="btn btn-outline-warning btn-sm w-100" onclick="stopHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-stop-fill"></i><br>
+                                    <small>停止</small>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-info btn-sm w-100" onclick="restartHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-arrow-clockwise"></i><br>
+                                    <small>重启</small>
+                                </button>
+                            </div>
                             {{ else }}
-                            <button class="btn btn-outline-success btn-sm" onclick="startHugoServe()">
-                                <i class="bi bi-play-fill"></i> 启动
-                            </button>
+                            <div class="col-6">
+                                <button class="btn btn-outline-success btn-sm w-100" onclick="startHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-play-fill"></i><br>
+                                    <small>启动</small>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-secondary btn-sm w-100" disabled style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-dash-circle"></i><br>
+                                    <small>未运行</small>
+                                </button>
+                            </div>
                             {{ end }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-2">
+                <h5 class="mb-3">批量操作</h5>
+                <div class="card action-card">
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <button class="btn btn-primary btn-sm w-100" onclick="deployAllServers(false)" disabled id="deployAllBtn" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-upload"></i><br>
+                                    <small>全量</small>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-primary btn-sm w-100" onclick="deployAllServers(true)" disabled id="deployAllIncBtn" style="aspect-ratio: 1; min-height: 45px;">
+                                    <i class="bi bi-arrow-up-circle"></i><br>
+                                    <small>增量</small>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="small text-muted text-center">
+                            需先构建
                         </div>
                     </div>
                 </div>
@@ -225,26 +277,17 @@
                                                     <i class="bi bi-wifi"></i>
                                                 </button>
                                                 
-                                                <!-- 部署按钮组 -->
+                                                <!-- 上传按钮组 -->
                                                 <div class="btn-group" role="group">
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            onclick="deployServer('{{ .ID }}', false)" title="全量部署">
+                                                    <button type="button" class="btn btn-sm btn-success deploy-btn" 
+                                                            onclick="deployServer('{{ .ID }}', false)" 
+                                                            title="全量上传" disabled>
                                                         <i class="bi bi-upload"></i>
                                                     </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-success" 
-                                                            onclick="deployServer('{{ .ID }}', true)" title="增量部署">
+                                                    <button type="button" class="btn btn-sm btn-outline-success deploy-btn" 
+                                                            onclick="deployServer('{{ .ID }}', true)" 
+                                                            title="增量上传" disabled>
                                                         <i class="bi bi-arrow-up-circle"></i>
-                                                    </button>
-                                                </div>
-                                                
-                                                <div class="btn-group" role="group">
-                                                    <button type="button" class="btn btn-sm btn-primary" 
-                                                            onclick="buildAndDeploy('{{ .ID }}', false)" title="构建+全量部署">
-                                                        <i class="bi bi-play-fill"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                            onclick="buildAndDeploy('{{ .ID }}', true)" title="构建+增量部署">
-                                                        <i class="bi bi-lightning-fill"></i>
                                                     </button>
                                                 </div>
                                                 {{ end }}

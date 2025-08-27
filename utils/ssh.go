@@ -174,7 +174,45 @@ func (c *SSHClient) ExecuteRsync(ctx context.Context, localPath, remotePath stri
 	}
 	
 	// 使用tar进行文件传输（更可靠的方法）
-	return c.transferFiles(ctx, localPath, remotePath, incremental)
+	return c.transferFilesWithServer(ctx, localPath, remotePath, incremental, "", "")
+}
+
+// 执行rsync命令进行文件同步（支持服务器信息）
+func (c *SSHClient) ExecuteRsyncWithServer(ctx context.Context, localPath, remotePath string, incremental bool, serverID, serverName string) (*DeployResult, error) {
+	if err := c.Connect(ctx); err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("SSH连接失败: %v", err),
+		}, err
+	}
+	defer c.Close()
+
+	// 构建rsync命令
+	rsyncArgs := []string{"-avz", "--stats"}
+	if incremental {
+		rsyncArgs = append(rsyncArgs, "--update", "--times")
+	} else {
+		rsyncArgs = append(rsyncArgs, "--delete")
+	}
+
+	// 检查本地目录是否存在
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("本地目录不存在: %s", localPath),
+		}, err
+	}
+
+	// 确保远程目录存在
+	if err := c.ensureRemoteDirectory(remotePath); err != nil {
+		return &DeployResult{
+			Success: false,
+			Message: fmt.Sprintf("无法创建远程目录: %v", err),
+		}, err
+	}
+
+	// 使用tar进行文件传输（更可靠的方法）
+	return c.transferFilesWithServer(ctx, localPath, remotePath, incremental, serverID, serverName)
 }
 
 // 确保远程目录存在
@@ -199,6 +237,11 @@ type FileTask struct {
 
 // 使用并发传输文件
 func (c *SSHClient) transferFiles(ctx context.Context, localPath, remotePath string, incremental bool) (*DeployResult, error) {
+	return c.transferFilesWithServer(ctx, localPath, remotePath, incremental, "", "")
+}
+
+// 使用并发传输文件（支持服务器信息）
+func (c *SSHClient) transferFilesWithServer(ctx context.Context, localPath, remotePath string, incremental bool, serverID, serverName string) (*DeployResult, error) {
 	result := &DeployResult{}
 	
 	// 检查是否有未完成的上传任务
@@ -247,10 +290,14 @@ func (c *SSHClient) transferFiles(ctx context.Context, localPath, remotePath str
 	config.SetDeploymentPaused(false)
 	
 	// 广播部署开始
-	BroadcastDeployProgress("正在准备文件传输...", 0, len(fileTasks), 0, "")
+	if serverID != "" && serverName != "" {
+		BroadcastMultiServerDeployProgress(serverID, serverName, "正在准备文件传输...", 0, len(fileTasks), 0, "")
+	} else {
+		BroadcastDeployProgress("正在准备文件传输...", 0, len(fileTasks), 0, "")
+	}
 	
 	// 并发传输文件
-	err := c.transferFilesConcurrently(ctx, fileTasks)
+	err := c.transferFilesConcurrentlyWithServer(ctx, fileTasks, serverID, serverName)
 	if err != nil {
 		BroadcastError("deploy", fmt.Sprintf("文件传输失败: %v", err))
 		return &DeployResult{
@@ -417,6 +464,10 @@ func generateTaskID() string {
 
 // 并发传输文件（支持暂停/继续）
 func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileTask) error {
+	return c.transferFilesConcurrentlyWithServer(ctx, tasks, "", "")
+}
+
+func (c *SSHClient) transferFilesConcurrentlyWithServer(ctx context.Context, tasks []FileTask, serverID, serverName string) error {
 	const maxConcurrency = 4 // 最大并发数
 	
 	// 进度跟踪
@@ -469,13 +520,19 @@ func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileT
 				// 广播当前文件进度
 				currentCount := atomic.LoadInt32(&completedCount)
 				progress := int(float64(currentCount) / float64(totalTasks) * 100)
-				BroadcastDeployProgress(
-					fmt.Sprintf("正在上传文件 (%d/%d)", currentCount+1, totalTasks),
-					progress,
-					totalTasks,
-					int(currentCount),
-					filepath.Base(task.RemoteFile),
-				)
+				if serverID != "" && serverName != "" {
+					BroadcastMultiServerDeployProgress(serverID, serverName,
+						fmt.Sprintf("正在上传文件 (%d/%d)", currentCount+1, totalTasks),
+						progress, totalTasks, int(currentCount), filepath.Base(task.RemoteFile))
+				} else {
+					BroadcastDeployProgress(
+						fmt.Sprintf("正在上传文件 (%d/%d)", currentCount+1, totalTasks),
+						progress,
+						totalTasks,
+						int(currentCount),
+						filepath.Base(task.RemoteFile),
+					)
+				}
 				
 				err := c.uploadSingleFile(task)
 				if err != nil {
@@ -494,13 +551,19 @@ func (c *SSHClient) transferFilesConcurrently(ctx context.Context, tasks []FileT
 				
 				// 广播进度更新
 				progress = int(float64(completed) / float64(totalTasks) * 100)
-				BroadcastDeployProgress(
-					fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
-					progress,
-					totalTasks,
-					int(completed),
-					"",
-				)
+				if serverID != "" && serverName != "" {
+					BroadcastMultiServerDeployProgress(serverID, serverName,
+						fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
+						progress, totalTasks, int(completed), "")
+				} else {
+					BroadcastDeployProgress(
+						fmt.Sprintf("已完成 %d/%d 文件", completed, totalTasks),
+						progress,
+						totalTasks,
+						int(completed),
+						"",
+					)
+				}
 			}
 		}(i)
 	}
@@ -806,6 +869,10 @@ func TestSSHConnection(sshConfig config.SSHConfig) error {
 
 // 便捷函数：执行部署
 func ExecuteDeployment(sshConfig config.SSHConfig, localPath, remotePath string, incremental bool) (*DeployResult, error) {
+	return ExecuteDeploymentWithServer(sshConfig, localPath, remotePath, incremental, "", "")
+}
+
+func ExecuteDeploymentWithServer(sshConfig config.SSHConfig, localPath, remotePath string, incremental bool, serverID, serverName string) (*DeployResult, error) {
 	client, err := NewSSHClient(sshConfig)
 	if err != nil {
 		return &DeployResult{
@@ -817,5 +884,5 @@ func ExecuteDeployment(sshConfig config.SSHConfig, localPath, remotePath string,
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	
-	return client.ExecuteRsync(ctx, localPath, remotePath, incremental)
+	return client.ExecuteRsyncWithServer(ctx, localPath, remotePath, incremental, serverID, serverName)
 }

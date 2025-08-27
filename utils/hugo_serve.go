@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -14,12 +15,14 @@ import (
 
 // HugoServeManager manages Hugo serve process
 type HugoServeManager struct {
-	cmd     *exec.Cmd
-	cancel  context.CancelFunc
-	ctx     context.Context
-	running bool
-	port    int
-	mutex   sync.RWMutex
+	cmd      *exec.Cmd
+	cancel   context.CancelFunc
+	ctx      context.Context
+	running  bool
+	port     int
+	mutex    sync.RWMutex
+	lastOutput string  // 保存最后的输出
+	lastError  string  // 保存最后的错误
 }
 
 var hugoServeManager = &HugoServeManager{
@@ -94,10 +97,16 @@ func (h *HugoServeManager) Start(port int) error {
 
 	h.cmd = exec.CommandContext(h.ctx, "hugo", args...)
 	h.cmd.Dir = projectPath
+	
+	// 捕获输出和错误
+	var stdout, stderr bytes.Buffer
+	h.cmd.Stdout = &stdout
+	h.cmd.Stderr = &stderr
 
 	// Start the command
 	if err := h.cmd.Start(); err != nil {
 		h.cancel()
+		h.lastError = fmt.Sprintf("启动Hugo serve失败: %v", err)
 		return fmt.Errorf("启动Hugo serve失败: %v", err)
 	}
 
@@ -174,7 +183,17 @@ func (h *HugoServeManager) GetStatus() map[string]interface{} {
 
 	if h.running {
 		status["url"] = fmt.Sprintf("http://localhost:%d", h.port)
-		status["pid"] = h.cmd.Process.Pid
+		if h.cmd != nil && h.cmd.Process != nil {
+			status["pid"] = h.cmd.Process.Pid
+		}
+	}
+
+	// 包含最后的输出和错误信息
+	if h.lastOutput != "" {
+		status["output"] = h.lastOutput
+	}
+	if h.lastError != "" {
+		status["error"] = h.lastError
 	}
 
 	return status
@@ -192,6 +211,21 @@ func (h *HugoServeManager) monitor() {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
+	// 获取输出内容
+	if h.cmd.Stdout != nil {
+		if stdout, ok := h.cmd.Stdout.(*bytes.Buffer); ok {
+			h.lastOutput = stdout.String()
+		}
+	}
+	if h.cmd.Stderr != nil {
+		if stderr, ok := h.cmd.Stderr.(*bytes.Buffer); ok {
+			errorOutput := stderr.String()
+			if errorOutput != "" {
+				h.lastError = errorOutput
+			}
+		}
+	}
+
 	h.running = false
 	h.cmd = nil
 	h.cancel = nil
@@ -199,6 +233,9 @@ func (h *HugoServeManager) monitor() {
 	if err != nil && h.ctx.Err() == nil {
 		// Process died unexpectedly (not due to cancellation)
 		fmt.Printf("Hugo serve进程异常退出: %v\n", err)
+		if h.lastError == "" {
+			h.lastError = fmt.Sprintf("Hugo serve进程异常退出: %v", err)
+		}
 	}
 }
 
