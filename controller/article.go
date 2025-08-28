@@ -568,6 +568,349 @@ func parseArticleDate(dateStr string) (time.Time, error) {
     return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
+// Claude Prompt: 检测时间是否符合Hugo要求的RFC3339格式
+// isValidHugoDate 检测日期是否符合Hugo标准的RFC3339格式
+func isValidHugoDate(dateStr string) bool {
+    if dateStr == "" {
+        return false
+    }
+    
+    // Hugo推荐的RFC3339格式
+    hugoFormats := []string{
+        time.RFC3339,     // 2006-01-02T15:04:05Z07:00
+        time.RFC3339Nano, // 2006-01-02T15:04:05.999999999Z07:00
+        "2006-01-02T15:04:05Z",        // UTC格式
+        "2006-01-02T15:04:05+08:00",   // 带时区格式
+        "2006-01-02T15:04:05-07:00",   // 带时区格式
+    }
+    
+    for _, format := range hugoFormats {
+        if _, err := time.Parse(format, dateStr); err == nil {
+            return true
+        }
+    }
+    
+    return false
+}
+
+// Claude Prompt: 修复时间格式为Hugo兼容的RFC3339格式
+// fixDateFormat 修复日期格式为Hugo兼容的RFC3339格式
+func fixDateFormat(dateStr string) (string, error) {
+    if dateStr == "" {
+        return "", fmt.Errorf("empty date string")
+    }
+    
+    // 如果已经是有效的Hugo格式，直接返回
+    if isValidHugoDate(dateStr) {
+        return dateStr, nil
+    }
+    
+    // 尝试解析日期
+    parsed, err := parseArticleDate(dateStr)
+    if err != nil {
+        return "", fmt.Errorf("无法解析日期: %v", err)
+    }
+    
+    // 转换为Hugo标准的RFC3339格式
+    // 如果没有时区信息，默认使用本地时区(+08:00)
+    if parsed.Location() == time.UTC && !strings.Contains(dateStr, "Z") && !strings.Contains(dateStr, "+") && !strings.Contains(dateStr, "-") {
+        // 对于没有时区信息的时间，假设为本地时间
+        loc, _ := time.LoadLocation("Asia/Shanghai")
+        parsed = time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 
+                          parsed.Hour(), parsed.Minute(), parsed.Second(), 
+                          parsed.Nanosecond(), loc)
+    }
+    
+    return parsed.Format(time.RFC3339), nil
+}
+
+// Claude Prompt: 修复博客文件中的时间格式
+// repairArticleDate 修复单个文章文件的时间格式
+func repairArticleDate(filePath string) error {
+    // 读取文件内容
+    data, err := os.ReadFile(filePath)
+    if err != nil {
+        return fmt.Errorf("读取文件失败: %v", err)
+    }
+    
+    content := string(data)
+    
+    // 提取当前的时间字段
+    _, _, _, _, _, _, date, _ := extractArticleMetadata(content)
+    
+    if date == "" {
+        return fmt.Errorf("文件中没有找到日期字段")
+    }
+    
+    // 检查是否需要修复
+    if isValidHugoDate(date) {
+        return nil // 格式已正确，无需修复
+    }
+    
+    // 修复时间格式
+    fixedDate, err := fixDateFormat(date)
+    if err != nil {
+        return fmt.Errorf("时间格式修复失败: %v", err)
+    }
+    
+    // 替换文件中的时间字段
+    newContent := replaceDateInFrontMatter(content, fixedDate)
+    
+    // 写回文件
+    err = os.WriteFile(filePath, []byte(newContent), 0644)
+    if err != nil {
+        return fmt.Errorf("写入文件失败: %v", err)
+    }
+    
+    return nil
+}
+
+// Claude Prompt: 在Front Matter中替换日期字段
+// replaceDateInFrontMatter 在Front Matter中替换日期字段
+func replaceDateInFrontMatter(content, newDate string) string {
+    lines := strings.Split(content, "\n")
+    inFrontMatter := false
+    
+    for i, line := range lines {
+        trimmedLine := strings.TrimSpace(line)
+        
+        // 检测Front Matter开始/结束
+        if trimmedLine == "---" {
+            inFrontMatter = !inFrontMatter
+            continue
+        }
+        
+        // 在Front Matter中查找日期字段
+        if inFrontMatter {
+            if strings.HasPrefix(trimmedLine, "date:") {
+                // 替换日期行
+                lines[i] = "date: " + newDate
+                break
+            }
+        }
+    }
+    
+    return strings.Join(lines, "\n")
+}
+
+// Claude Prompt: 批量修复所有博客时间格式的API接口
+// RepairAllArticleDates 批量修复所有博客文件的时间格式
+func RepairAllArticleDates(c *gin.Context) {
+    projectPath := config.GetHugoProjectPath()
+    if projectPath == "" {
+        i18nManager := utils.GetI18nManager()
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": i18nManager.T("settings.hugo.path.not.set"),
+        })
+        return
+    }
+
+    contentPath := filepath.Join(projectPath, "content")
+    if _, err := os.Stat(contentPath); os.IsNotExist(err) {
+        i18nManager := utils.GetI18nManager()
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": i18nManager.T("articles.path.not.exist"),
+        })
+        return
+    }
+
+    var repairedFiles []string
+    var failedFiles []map[string]string
+    totalFiles := 0
+
+    // 遍历所有markdown文件
+    err := filepath.Walk(contentPath, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+
+        // 只处理markdown文件
+        if !strings.HasSuffix(strings.ToLower(info.Name()), ".md") {
+            return nil
+        }
+
+        totalFiles++
+        relativePath := strings.TrimPrefix(path, contentPath)
+        relativePath = strings.TrimPrefix(relativePath, string(os.PathSeparator))
+
+        // 尝试修复文件的时间格式
+        if err := repairArticleDate(path); err != nil {
+            failedFiles = append(failedFiles, map[string]string{
+                "file":  relativePath,
+                "error": err.Error(),
+            })
+        } else {
+            // 检查是否实际进行了修复
+            data, _ := os.ReadFile(path)
+            content := string(data)
+            _, _, _, _, _, _, date, _ := extractArticleMetadata(content)
+            
+            if date != "" && isValidHugoDate(date) {
+                repairedFiles = append(repairedFiles, relativePath)
+            }
+        }
+
+        return nil
+    })
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "扫描文件失败: " + err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "message":        "批量修复完成",
+        "total_files":    totalFiles,
+        "repaired_files": repairedFiles,
+        "failed_files":   failedFiles,
+        "repaired_count": len(repairedFiles),
+        "failed_count":   len(failedFiles),
+    })
+}
+
+// Claude Prompt: 单个文章时间修复API接口
+// RepairSingleArticleDate 修复单个文章文件的时间格式
+func RepairSingleArticleDate(c *gin.Context) {
+    var request struct {
+        Path string `json:"path"`
+    }
+
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "请求参数错误: " + err.Error(),
+        })
+        return
+    }
+
+    projectPath := config.GetHugoProjectPath()
+    if projectPath == "" {
+        i18nManager := utils.GetI18nManager()
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": i18nManager.T("settings.hugo.path.not.set"),
+        })
+        return
+    }
+
+    // 构建完整路径
+    fullPath := filepath.Join(projectPath, "content", request.Path)
+
+    // 检查文件是否存在
+    if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+        c.JSON(http.StatusNotFound, gin.H{
+            "error": "文件不存在: " + request.Path,
+        })
+        return
+    }
+
+    // 修复文件时间格式
+    if err := repairArticleDate(fullPath); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "修复失败: " + err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "message": "文章时间格式修复成功",
+        "path":    request.Path,
+    })
+}
+
+// Claude Prompt: 检查时间格式状态API接口
+// CheckDateFormats 检查所有文章的时间格式状态
+func CheckDateFormats(c *gin.Context) {
+    projectPath := config.GetHugoProjectPath()
+    if projectPath == "" {
+        i18nManager := utils.GetI18nManager()
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": i18nManager.T("settings.hugo.path.not.set"),
+        })
+        return
+    }
+
+    contentPath := filepath.Join(projectPath, "content")
+    if _, err := os.Stat(contentPath); os.IsNotExist(err) {
+        i18nManager := utils.GetI18nManager()
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": i18nManager.T("articles.path.not.exist"),
+        })
+        return
+    }
+
+    var validFiles []string
+    var invalidFiles []map[string]interface{}
+    totalFiles := 0
+
+    // 遍历所有markdown文件
+    err := filepath.Walk(contentPath, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+
+        // 只处理markdown文件
+        if !strings.HasSuffix(strings.ToLower(info.Name()), ".md") {
+            return nil
+        }
+
+        totalFiles++
+        relativePath := strings.TrimPrefix(path, contentPath)
+        relativePath = strings.TrimPrefix(relativePath, string(os.PathSeparator))
+
+        // 读取文件并检查时间格式
+        data, err := os.ReadFile(path)
+        if err != nil {
+            invalidFiles = append(invalidFiles, map[string]interface{}{
+                "file":   relativePath,
+                "error":  "读取文件失败: " + err.Error(),
+                "status": "read_error",
+            })
+            return nil
+        }
+
+        content := string(data)
+        _, _, _, _, _, _, date, _ := extractArticleMetadata(content)
+
+        if date == "" {
+            invalidFiles = append(invalidFiles, map[string]interface{}{
+                "file":     relativePath,
+                "error":    "缺少日期字段",
+                "status":   "missing_date",
+                "current":  "",
+            })
+        } else if !isValidHugoDate(date) {
+            fixedDate, _ := fixDateFormat(date)
+            invalidFiles = append(invalidFiles, map[string]interface{}{
+                "file":     relativePath,
+                "error":    "时间格式不符合Hugo要求",
+                "status":   "invalid_format",
+                "current":  date,
+                "suggested": fixedDate,
+            })
+        } else {
+            validFiles = append(validFiles, relativePath)
+        }
+
+        return nil
+    })
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "扫描文件失败: " + err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "total_files":    totalFiles,
+        "valid_files":    validFiles,
+        "invalid_files":  invalidFiles,
+        "valid_count":    len(validFiles),
+        "invalid_count":  len(invalidFiles),
+    })
+}
+
 // Claude Prompt: 添加分离Front Matter和主体内容的函数
 // separateContentAndFrontMatter 分离Front Matter和文章主体内容
 func separateContentAndFrontMatter(content string) (frontMatter, bodyContent string) {
@@ -630,7 +973,7 @@ func readArticleContentWithAnalysis(filePath, relativePath string, modTime time.
     content := string(data)
     
     // 提取文章元数据
-    title, categories, tags, url, date, isDraft := extractArticleMetadata(content)
+    title, _, _, categories, tags, url, date, isDraft := extractArticleMetadata(content)
     if title == "" {
         // 如果没有找到标题，使用文件名（去掉扩展名）
         base := filepath.Base(filePath)
@@ -804,6 +1147,8 @@ func detectArticleIssues(content, title string, categories, tags []string, url, 
     // 检测日期问题
     if date == "" {
         issues = append(issues, "发布时间为空")
+    } else if !isValidHugoDate(date) {
+        issues = append(issues, "发布时间格式不符合Hugo要求(需RFC3339格式)")
     }
     
     // 检测图片链接问题

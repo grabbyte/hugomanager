@@ -212,11 +212,29 @@
                             <div class="col-md-6 mb-3">
                                 <label for="publishDate" class="form-label">
                                     <i class="bi bi-calendar me-1"></i>
-                                    发布日期
+                                    <span data-i18n="articles.publish.date">发布日期</span>
                                 </label>
-                                <input type="datetime-local" class="form-control" id="publishDate" 
-                                       value="{{ .PublishDate }}">
-                                <div class="form-text">设置文章的发布时间</div>
+                                <div class="input-group">
+                                    <input type="datetime-local" class="form-control" id="publishDate" 
+                                           value="{{ .PublishDate }}">
+                                    <button class="btn btn-outline-warning" type="button" id="fixDateBtn" 
+                                            onclick="checkAndFixDate()" style="display:none;" 
+                                            title="时间格式不符合Hugo要求，点击修复">
+                                        <i class="bi bi-tools"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text" id="publishDateHelp">
+                                    <span data-i18n="articles.publish.date.help">设置文章的发布时间</span>
+                                </div>
+                                <div class="alert alert-warning mt-2" id="dateFormatAlert" style="display:none;">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <span data-i18n="datetime.format.warning">当前时间格式不符合Hugo要求(需RFC3339格式)</span>
+                                    <br>
+                                    <small>
+                                        <strong data-i18n="datetime.current.format">当前格式:</strong> <code id="currentDateFormat"></code><br>
+                                        <strong data-i18n="datetime.suggested.format">建议格式:</strong> <code id="suggestedDateFormat"></code>
+                                    </small>
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="articleURL" class="form-label">

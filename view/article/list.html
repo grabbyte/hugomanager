@@ -51,10 +51,23 @@
                             <p class="lead mb-0" data-i18n="articles.subtitle">浏览所有博客文章，支持分页和时间筛选</p>
                         </div>
                         <div>
-                            <button type="button" class="btn btn-light btn-lg" onclick="showNewArticleModal()">
+                            <button type="button" class="btn btn-light btn-lg me-2" onclick="showNewArticleModal()">
                                 <i class="bi bi-plus-circle me-2"></i>
                                 新建文章
                             </button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="bi bi-clock-history me-1"></i><span data-i18n="datetime.repair.title">时间修复</span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="checkDateFormats()">
+                                        <i class="bi bi-search me-2"></i><span data-i18n="datetime.repair.check">检查时间格式</span>
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="repairAllDates()">
+                                        <i class="bi bi-tools me-2"></i><span data-i18n="datetime.repair.batch">批量修复时间</span>
+                                    </a></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -295,10 +308,8 @@
                                 </label>
                                 <select class="form-select" id="newArticleDirectory">
                                     <option value="posts" selected>posts (默认文章目录)</option>
-                                    <option value="pages">pages (页面目录)</option>
-                                    <option value="blog">blog (博客目录)</option>
                                 </select>
-                                <div class="form-text">选择文章保存的目录</div>
+                                <div class="form-text">选择文章保存的目录，支持子目录选择</div>
                             </div>
                         </div>
                         
@@ -319,6 +330,36 @@
                     </button>
                     <button type="button" class="btn btn-primary" onclick="createNewArticle()">
                         <i class="bi bi-plus-circle me-1"></i>创建文章
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 时间格式检查结果模态框 -->
+    <div class="modal fade" id="dateFormatCheckModal" tabindex="-1" aria-labelledby="dateFormatCheckModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dateFormatCheckModalLabel">
+                        <i class="bi bi-clock-history me-2"></i><span data-i18n="datetime.repair.check">检查时间格式</span>结果
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="dateCheckResults">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">正在检查时间格式...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.close">关闭</button>
+                    <button type="button" class="btn btn-warning" id="bulkRepairBtn" onclick="repairAllDates()" style="display:none;">
+                        <i class="bi bi-tools me-1"></i><span data-i18n="datetime.repair.batch">批量修复所有问题</span>
                     </button>
                 </div>
             </div>
@@ -854,6 +895,9 @@
         
         // 显示新建文章模态框
         function showNewArticleModal() {
+            // 更新目录选择列表
+            updateDirectoryOptions();
+            
             const modal = new bootstrap.Modal(document.getElementById('newArticleModal'));
             
             // 重置表单
@@ -863,6 +907,49 @@
             document.getElementById('newArticleDirectory').value = 'posts';
             
             modal.show();
+        }
+
+        // 更新目录选项
+        function updateDirectoryOptions() {
+            const select = document.getElementById('newArticleDirectory');
+            
+            // 从目录树中获取所有目录
+            fetch('/api/directory-tree')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) return;
+                    
+                    // 清空现有选项，保留默认选项
+                    select.innerHTML = '<option value="posts" selected>posts (默认文章目录)</option>';
+                    
+                    // 递归添加目录选项
+                    addDirectoryOptions(select, data, '');
+                })
+                .catch(error => {
+                    console.error('Error loading directory options:', error);
+                });
+        }
+
+        // 递归添加目录选项
+        function addDirectoryOptions(select, node, parentPath) {
+            if (node.children) {
+                for (const child of node.children) {
+                    const childPath = parentPath ? `${parentPath}/${child.name}` : child.name;
+                    
+                    // 添加选项（排除已有的posts选项）
+                    if (childPath !== 'posts') {
+                        const option = document.createElement('option');
+                        option.value = childPath;
+                        option.textContent = childPath;
+                        select.appendChild(option);
+                    }
+                    
+                    // 递归处理子目录
+                    if (child.children && child.children.length > 0) {
+                        addDirectoryOptions(select, child, childPath);
+                    }
+                }
+            }
         }
         
         // 创建新文章
@@ -938,6 +1025,285 @@
                 // 恢复按钮状态
                 createBtn.disabled = false;
                 createBtn.innerHTML = originalText;
+            }
+        }
+        
+        // Claude Prompt: 时间格式检查功能
+        // 检查所有文章的时间格式
+        async function checkDateFormats() {
+            const modal = new bootstrap.Modal(document.getElementById('dateFormatCheckModal'));
+            
+            // 重置模态框内容
+            const checkingText = window.getTranslation ? window.getTranslation('datetime.repair.checking', '正在检查时间格式...') : '正在检查时间格式...';
+            document.getElementById('dateCheckResults').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">${checkingText}</p>
+                </div>
+            `;
+            document.getElementById('bulkRepairBtn').style.display = 'none';
+            
+            modal.show();
+            
+            try {
+                const response = await fetch('/api/check-date-formats');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('dateCheckResults').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            检查失败: ${data.error}
+                        </div>
+                    `;
+                    return;
+                }
+                
+                renderDateCheckResults(data);
+                
+                // 如果有问题文件，显示批量修复按钮
+                if (data.invalid_count > 0) {
+                    document.getElementById('bulkRepairBtn').style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Error checking date formats:', error);
+                document.getElementById('dateCheckResults').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        网络错误: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 渲染时间检查结果
+        function renderDateCheckResults(data) {
+            const totalFilesText = window.getTranslation ? window.getTranslation('datetime.repair.total.files', '总文件数') : '总文件数';
+            const validCountText = window.getTranslation ? window.getTranslation('datetime.repair.valid.count', '格式正确') : '格式正确';
+            const invalidCountText = window.getTranslation ? window.getTranslation('datetime.repair.invalid.count', '需要修复') : '需要修复';
+            const successRateText = window.getTranslation ? window.getTranslation('datetime.repair.success.rate', '正确率') : '正确率';
+            
+            let html = `
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="card-title text-primary">${data.total_files}</h3>
+                                <p class="card-text">${totalFilesText}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="card-title text-success">${data.valid_count}</h3>
+                                <p class="card-text">${validCountText}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="card-title text-danger">${data.invalid_count}</h3>
+                                <p class="card-text">${invalidCountText}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="card-title text-warning">${Math.round(data.valid_count / data.total_files * 100)}%</h3>
+                                <p class="card-text">${successRateText}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (data.invalid_count > 0) {
+                const invalidFilesText = window.getTranslation ? window.getTranslation('datetime.repair.invalid.files', '需要修复的文件') : '需要修复的文件';
+                const problemTypeText = window.getTranslation ? window.getTranslation('datetime.repair.problem.type', '问题类型') : '问题类型';
+                const currentFormatText = window.getTranslation ? window.getTranslation('datetime.repair.current.format', '当前格式') : '当前格式';
+                const suggestedFormatText = window.getTranslation ? window.getTranslation('datetime.repair.suggested.format', '建议格式') : '建议格式';
+                const actionText = window.getTranslation ? window.getTranslation('datetime.repair.action', '操作') : '操作';
+                
+                html += `
+                    <h6 class="mt-4 mb-3">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        ${invalidFilesText} (${data.invalid_count} 个)
+                    </h6>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>文件</th>
+                                    <th>${problemTypeText}</th>
+                                    <th>${currentFormatText}</th>
+                                    <th>${suggestedFormatText}</th>
+                                    <th>${actionText}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                const missingDateText = window.getTranslation ? window.getTranslation('datetime.repair.missing.date', '缺少日期') : '缺少日期';
+                const invalidFormatText = window.getTranslation ? window.getTranslation('datetime.repair.invalid.format', '格式错误') : '格式错误';
+                const readErrorText = window.getTranslation ? window.getTranslation('datetime.repair.read.error', '读取失败') : '读取失败';
+                const cannotFixText = window.getTranslation ? window.getTranslation('datetime.repair.cannot.fix', '无法修复') : '无法修复';
+                const singleFixText = window.getTranslation ? window.getTranslation('datetime.repair.single.fix', '修复') : '修复';
+                
+                data.invalid_files.forEach(file => {
+                    const statusClass = file.status === 'missing_date' ? 'table-warning' : 
+                                       file.status === 'invalid_format' ? 'table-danger' : 'table-secondary';
+                    const statusText = file.status === 'missing_date' ? missingDateText :
+                                      file.status === 'invalid_format' ? invalidFormatText : readErrorText;
+                    
+                    html += `
+                        <tr class="${statusClass}">
+                            <td><code>${file.file}</code></td>
+                            <td><span class="badge bg-danger">${statusText}</span></td>
+                            <td><code>${file.current || '无'}</code></td>
+                            <td><code>${file.suggested || '无法生成'}</code></td>
+                            <td>
+                                ${file.status === 'invalid_format' ? 
+                                    `<button class="btn btn-sm btn-warning" onclick="repairSingleDate('${file.file}')">
+                                        <i class="bi bi-tools"></i> ${singleFixText}
+                                    </button>` : 
+                                    `<span class="text-muted">${cannotFixText}</span>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                const allSuccessText = window.getTranslation ? window.getTranslation('datetime.repair.all.success', '太棒了！') : '太棒了！';
+                const allValidText = window.getTranslation ? window.getTranslation('datetime.repair.all.valid', '所有文章的时间格式都符合Hugo要求') : '所有文章的时间格式都符合Hugo要求';
+                
+                html += `
+                    <div class="alert alert-success text-center">
+                        <i class="bi bi-check-circle fs-1 text-success mb-3"></i>
+                        <h5>${allSuccessText}</h5>
+                        <p class="mb-0">${allValidText}</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('dateCheckResults').innerHTML = html;
+        }
+        
+        // 批量修复所有时间格式问题
+        async function repairAllDates() {
+            const confirmText = window.getTranslation ? window.getTranslation('datetime.repair.confirm', '确定要批量修复所有博客的时间格式吗？\\n这将修改文件内容，建议先备份。') : '确定要批量修复所有博客的时间格式吗？\n这将修改文件内容，建议先备份。';
+            if (!confirm(confirmText)) {
+                return;
+            }
+            
+            const originalBtn = event?.target || document.getElementById('bulkRepairBtn');
+            const originalText = originalBtn.innerHTML;
+            originalBtn.disabled = true;
+            const repairingText = window.getTranslation ? window.getTranslation('datetime.repair.repairing', '修复中...') : '修复中...';
+            originalBtn.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>${repairingText}`;
+            
+            try {
+                const response = await fetch('/api/repair-all-dates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('批量修复失败: ' + data.error);
+                    return;
+                }
+                
+                // 显示修复结果
+                const completedText = window.getTranslation ? window.getTranslation('datetime.repair.completed', '批量修复完成！') : '批量修复完成！';
+                const totalFilesLabel = window.getTranslation ? window.getTranslation('datetime.repair.total.files', '总文件数') : '总文件数';
+                const repairedLabel = '修复成功'; // 可以添加到翻译文件
+                const failedLabel = '修复失败';   // 可以添加到翻译文件
+                
+                let message = `${completedText}\n\n`;
+                message += `${totalFilesLabel}: ${data.total_files}\n`;
+                message += `${repairedLabel}: ${data.repaired_count}\n`;
+                message += `${failedLabel}: ${data.failed_count}\n`;
+                
+                if (data.failed_count > 0) {
+                    message += '\n失败文件:\n';
+                    data.failed_files.forEach(failed => {
+                        message += `- ${failed.file}: ${failed.error}\n`;
+                    });
+                }
+                
+                alert(message);
+                
+                // 隐藏模态框并刷新列表
+                const modal = bootstrap.Modal.getInstance(document.getElementById('dateFormatCheckModal'));
+                modal.hide();
+                
+                // 重新检查格式状态
+                setTimeout(() => {
+                    loadArticleStats();
+                    loadArticles();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error repairing all dates:', error);
+                alert('批量修复失败: ' + error.message);
+            } finally {
+                originalBtn.disabled = false;
+                originalBtn.innerHTML = originalText;
+            }
+        }
+        
+        // 修复单个文件的时间格式
+        async function repairSingleDate(filePath) {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+            
+            try {
+                const response = await fetch('/api/repair-single-date', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        path: filePath
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('修复失败: ' + data.error);
+                    return;
+                }
+                
+                const successText = window.getTranslation ? window.getTranslation('datetime.repair.success.single', '修复成功！') : '修复成功！';
+                alert(successText);
+                
+                // 重新检查格式
+                checkDateFormats();
+                
+            } catch (error) {
+                console.error('Error repairing single date:', error);
+                alert('修复失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
     </script>

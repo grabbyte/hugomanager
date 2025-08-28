@@ -257,6 +257,11 @@ func Start() {
 	r.POST("/api/upload-image-base64", controller.UploadImageBase64)
 	r.POST("/api/create-article", controller.CreateNewArticle)
 	r.POST("/api/repair-filenames", controller.RepairFilenames)
+	
+	// 时间格式修复相关API
+	r.POST("/api/repair-all-dates", controller.RepairAllArticleDates)
+	r.POST("/api/repair-single-date", controller.RepairSingleArticleDate)
+	r.GET("/api/check-date-formats", controller.CheckDateFormats)
 	r.GET("/api/debug-path", controller.DebugPath)
 
 	// 多语言相关路由
