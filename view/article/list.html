@@ -35,6 +35,37 @@
             text-align: center;
             padding: 40px;
         }
+        .preview-header {
+            border-left: 4px solid #007bff;
+        }
+        .markdown-content {
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3,
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .markdown-content code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .markdown-content pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #dee2e6;
+            padding-left: 1rem;
+            margin-left: 0;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -53,7 +84,7 @@
                         <div>
                             <button type="button" class="btn btn-light btn-lg me-2" onclick="showNewArticleModal()">
                                 <i class="bi bi-plus-circle me-2"></i>
-                                新建文章
+                                <span data-i18n="articles.new.article">新建文章</span>
                             </button>
                             <div class="btn-group">
                                 <button type="button" class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
@@ -246,7 +277,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="newArticleModalLabel">
-                        <i class="bi bi-plus-circle me-2"></i>新建文章
+                        <i class="bi bi-plus-circle me-2"></i><span data-i18n="articles.new.article">新建文章</span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -330,6 +361,36 @@
                     </button>
                     <button type="button" class="btn btn-primary" onclick="createNewArticle()">
                         <i class="bi bi-plus-circle me-1"></i>创建文章
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文章预览模态框 -->
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="previewModalLabel">
+                        <i class="bi bi-eye me-2"></i><span data-i18n="articles.preview.title">文章预览</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="previewContent">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2" data-i18n="articles.preview.loading">正在加载文章内容...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.close">关闭</button>
+                    <button type="button" class="btn btn-primary" id="editFromPreviewBtn" onclick="editCurrentArticle()">
+                        <i class="bi bi-pencil me-1"></i><span data-i18n="articles.edit">编辑</span>
                     </button>
                 </div>
             </div>
@@ -593,6 +654,9 @@
                                 </small>
                             </div>
                             <div class="text-end">
+                                <button class="btn btn-sm btn-outline-info me-1" data-article="${article.Path}" onclick="event.stopPropagation(); handlePreviewArticle(this)">
+                                    <i class="bi bi-eye"></i> <span data-i18n="articles.preview">预览</span>
+                                </button>
                                 <button class="btn btn-sm btn-outline-primary me-1" data-article="${article.Path}" onclick="event.stopPropagation(); handleEditArticle(this)">
                                     <i class="bi bi-pencil"></i> <span data-i18n="articles.edit">编辑</span>
                                 </button>
@@ -821,6 +885,12 @@
             window.history.replaceState({}, '', newURL);
         }
         
+        // 处理预览文章按钮点击
+        function handlePreviewArticle(elem) {
+            const path = elem.getAttribute('data-article');
+            previewArticle(path);
+        }
+
         // 处理编辑文章按钮点击
         function handleEditArticle(elem) {
             const path = elem.getAttribute('data-article');
@@ -833,6 +903,106 @@
             deleteArticle(path);
         }
         
+        // 预览文章
+        let currentPreviewPath = '';
+        
+        async function previewArticle(articlePath) {
+            currentPreviewPath = articlePath;
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            
+            // 重置预览内容
+            const loadingText = window.getTranslation ? 
+                window.getTranslation('articles.preview.loading', '正在加载文章内容...') : 
+                '正在加载文章内容...';
+            document.getElementById('previewContent').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">${loadingText}</p>
+                </div>
+            `;
+            
+            modal.show();
+            
+            try {
+                const response = await fetch('/api/article/preview?path=' + encodeURIComponent(articlePath));
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('previewContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            加载失败: ${data.error}
+                        </div>
+                    `;
+                    return;
+                }
+                
+                renderPreviewContent(data);
+                
+            } catch (error) {
+                console.error('Error loading article preview:', error);
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        网络错误: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 渲染预览内容
+        function renderPreviewContent(data) {
+            const content = document.getElementById('previewContent');
+            
+            let html = `
+                <div class="preview-header mb-4 p-3 bg-light rounded">
+                    <h2 class="mb-3">${data.title || '无标题'}</h2>
+                    <div class="row text-muted small">
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <i class="bi bi-person me-1"></i>
+                                <strong>作者:</strong> ${data.metadata.author || '未知'}
+                            </div>
+                            <div class="mb-2">
+                                <i class="bi bi-calendar me-1"></i>
+                                <strong>发布时间:</strong> ${data.metadata.date || '未设置'}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            ${data.metadata.categories ? `
+                                <div class="mb-2">
+                                    <i class="bi bi-folder me-1"></i>
+                                    <strong>分类:</strong> ${data.metadata.categories.join(', ')}
+                                </div>
+                            ` : ''}
+                            ${data.metadata.tags ? `
+                                <div class="mb-2">
+                                    <i class="bi bi-tags me-1"></i>
+                                    <strong>标签:</strong> ${data.metadata.tags.join(', ')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ${data.metadata.draft ? '<span class="badge bg-warning">草稿</span>' : '<span class="badge bg-success">已发布</span>'}
+                </div>
+                
+                <div class="preview-content">
+                    <div class="markdown-content">${data.content}</div>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+        }
+        
+        // 从预览页面编辑文章
+        function editCurrentArticle() {
+            if (currentPreviewPath) {
+                editArticle(currentPreviewPath);
+            }
+        }
+
         // 编辑文章
         function editArticle(articlePath) {
             const editorUrl = '/article/edit?path=' + encodeURIComponent(articlePath);

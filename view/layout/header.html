@@ -36,6 +36,21 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "tools"}} active{{end}}" href="/tools">
+                        <i class="bi bi-tools"></i> <span data-i18n="nav.tools">工具箱</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "books"}} active{{end}}" href="/books">
+                        <i class="bi bi-book"></i> <span data-i18n="nav.books">书籍收藏</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{if eq .Page "wiki"}} active{{end}}" href="/wiki">
+                        <i class="bi bi-wikipedia"></i> <span data-i18n="nav.wiki">知识库</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link{{if eq .Page "trash"}} active{{end}}" href="/trash">
                         <i class="bi bi-trash"></i> <span data-i18n="nav.trash">回收站</span>
                     </a>

@@ -341,6 +341,13 @@ func CreateNewArticle(c *gin.Context) {
         return
     }
     
+    // 生成URL规则：/p/年/月/随机数字.html
+    year := now.Format("2006")
+    month := now.Format("01")
+    // 生成4位随机数字
+    randomNum := fmt.Sprintf("%04d", time.Now().UnixNano()%10000)
+    blogURL := fmt.Sprintf("/p/%s/%s/%s.html", year, month, randomNum)
+    
     // 创建Front Matter
     frontMatter := utils.FrontMatter{
         Title:      request.Title,
@@ -349,6 +356,7 @@ func CreateNewArticle(c *gin.Context) {
         Date:       now.Format("2006-01-02T15:04:05+08:00"),
         Categories: request.Categories,
         Tags:       request.Tags,
+        URL:        blogURL,
     }
     
     // 如果没有指定类型，默认为post
@@ -427,4 +435,215 @@ func buildDirectoryTree(basePath, relativePath string) (*TreeNode, error) {
     }
     
     return node, nil
+}
+
+// Claude Prompt: 实现文章预览API，解析markdown文件内容和元数据
+func PreviewArticle(c *gin.Context) {
+    relativePath := c.Query("path")
+    if relativePath == "" {
+        c.JSON(400, gin.H{"error": "文件路径不能为空"})
+        return
+    }
+    
+    // 标准化路径分隔符
+    relativePath = filepath.FromSlash(relativePath)
+    
+    // 清理路径
+    dir := filepath.Dir(relativePath)
+    filename := filepath.Base(relativePath)
+    cleanFilename := utils.CleanFilename(filename)
+    
+    var cleanRelativePath string
+    if dir == "." || dir == "" {
+        cleanRelativePath = cleanFilename
+    } else {
+        cleanRelativePath = filepath.Clean(filepath.Join(dir, cleanFilename))
+    }
+    
+    fullPath := filepath.Join(config.GetContentDir(), cleanRelativePath)
+    
+    // 验证路径安全性
+    contentDir := config.GetContentDir()
+    absFullPath, err := filepath.Abs(fullPath)
+    if err != nil {
+        c.JSON(400, gin.H{"error": "无效的文件路径"})
+        return
+    }
+    
+    absContentDir, err := filepath.Abs(contentDir)
+    if err != nil {
+        c.JSON(500, gin.H{"error": "内部错误：无法解析内容目录"})
+        return
+    }
+    
+    if !strings.HasPrefix(absFullPath, absContentDir) {
+        c.JSON(403, gin.H{"error": "禁止访问此路径"})
+        return
+    }
+    
+    // 读取文件内容
+    content, err := os.ReadFile(fullPath)
+    if err != nil {
+        c.JSON(404, gin.H{"error": "文件不存在或无法读取"})
+        return
+    }
+    
+    // 解析markdown文件的front matter和内容
+    fileContent := string(content)
+    frontMatter, markdownContent := parseFrontMatter(fileContent)
+    
+    // 转换markdown为HTML（简单处理，可后续增强）
+    htmlContent := convertMarkdownToHTML(markdownContent)
+    
+    c.JSON(200, gin.H{
+        "title":    frontMatter["title"],
+        "metadata": frontMatter,
+        "content":  htmlContent,
+        "raw_content": markdownContent,
+    })
+}
+
+// 解析Front Matter
+func parseFrontMatter(content string) (map[string]interface{}, string) {
+    metadata := make(map[string]interface{})
+    
+    if !strings.HasPrefix(content, "---") {
+        return metadata, content
+    }
+    
+    // 查找第二个---的位置
+    parts := strings.SplitN(content, "---", 3)
+    if len(parts) < 3 {
+        return metadata, content
+    }
+    
+    // 解析YAML front matter
+    frontMatterContent := strings.TrimSpace(parts[1])
+    lines := strings.Split(frontMatterContent, "\n")
+    
+    var currentKey string
+    var currentArray []string
+    
+    for _, line := range lines {
+        line = strings.TrimSpace(line)
+        
+        if line == "" || strings.HasPrefix(line, "#") {
+            continue
+        }
+        
+        // 检查是否是数组项（以-开头）
+        if strings.HasPrefix(line, "-") {
+            if currentKey != "" {
+                arrayValue := strings.TrimSpace(line[1:])
+                // 移除引号
+                if strings.HasPrefix(arrayValue, "\"") && strings.HasSuffix(arrayValue, "\"") {
+                    arrayValue = arrayValue[1 : len(arrayValue)-1]
+                }
+                currentArray = append(currentArray, arrayValue)
+            }
+            continue
+        }
+        
+        // 如果遇到新的键值对，先保存之前的数组
+        if currentKey != "" && len(currentArray) > 0 {
+            metadata[currentKey] = currentArray
+            currentArray = nil
+        }
+        
+        if colonIndex := strings.Index(line, ":"); colonIndex > 0 {
+            key := strings.TrimSpace(line[:colonIndex])
+            value := strings.TrimSpace(line[colonIndex+1:])
+            
+            // 如果值为空，可能是数组的开始
+            if value == "" {
+                currentKey = key
+                currentArray = []string{}
+                continue
+            }
+            
+            currentKey = ""
+            
+            // 移除引号
+            if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+                value = value[1 : len(value)-1]
+            }
+            
+            // 处理方括号格式的数组
+            if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+                value = strings.Trim(value, "[]")
+                if value == "" {
+                    metadata[key] = []string{}
+                } else {
+                    items := strings.Split(value, ",")
+                    var cleanItems []string
+                    for _, item := range items {
+                        item = strings.TrimSpace(item)
+                        item = strings.Trim(item, "\"'")
+                        if item != "" {
+                            cleanItems = append(cleanItems, item)
+                        }
+                    }
+                    metadata[key] = cleanItems
+                }
+            } else {
+                metadata[key] = value
+            }
+        }
+    }
+    
+    // 保存最后的数组
+    if currentKey != "" && len(currentArray) > 0 {
+        metadata[currentKey] = currentArray
+    }
+    
+    // 返回markdown内容（去除front matter）
+    markdownContent := strings.TrimSpace(parts[2])
+    return metadata, markdownContent
+}
+
+// 简单的Markdown转HTML（基础实现）
+func convertMarkdownToHTML(markdown string) string {
+    html := markdown
+    
+    // 处理标题
+    lines := strings.Split(html, "\n")
+    for i, line := range lines {
+        line = strings.TrimSpace(line)
+        if strings.HasPrefix(line, "# ") {
+            lines[i] = "<h1>" + line[2:] + "</h1>"
+        } else if strings.HasPrefix(line, "## ") {
+            lines[i] = "<h2>" + line[3:] + "</h2>"
+        } else if strings.HasPrefix(line, "### ") {
+            lines[i] = "<h3>" + line[4:] + "</h3>"
+        } else if strings.HasPrefix(line, "#### ") {
+            lines[i] = "<h4>" + line[5:] + "</h4>"
+        } else if strings.HasPrefix(line, "##### ") {
+            lines[i] = "<h5>" + line[6:] + "</h5>"
+        } else if strings.HasPrefix(line, "###### ") {
+            lines[i] = "<h6>" + line[7:] + "</h6>"
+        }
+    }
+    
+    html = strings.Join(lines, "\n")
+    
+    // 处理段落（简单处理：用<br>替换单个换行，用<p>包装段落）
+    paragraphs := strings.Split(html, "\n\n")
+    var htmlParagraphs []string
+    
+    for _, paragraph := range paragraphs {
+        paragraph = strings.TrimSpace(paragraph)
+        if paragraph != "" {
+            // 如果已经是HTML标签，直接使用
+            if strings.HasPrefix(paragraph, "<h") || strings.HasPrefix(paragraph, "<ul") || 
+               strings.HasPrefix(paragraph, "<ol") || strings.HasPrefix(paragraph, "<blockquote") {
+                htmlParagraphs = append(htmlParagraphs, paragraph)
+            } else {
+                // 处理行内换行
+                paragraph = strings.ReplaceAll(paragraph, "\n", "<br>")
+                htmlParagraphs = append(htmlParagraphs, "<p>"+paragraph+"</p>")
+            }
+        }
+    }
+    
+    return strings.Join(htmlParagraphs, "\n")
 }

@@ -1,0 +1,697 @@
+{{ define "wiki/index.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="wiki.title">知识库</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .wiki-card {
+            transition: all 0.3s ease;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            height: 100%;
+        }
+        .wiki-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-color: #fd7e14;
+        }
+        .category-section {
+            margin-bottom: 40px;
+        }
+        .category-header {
+            background: linear-gradient(135deg, #fd7e14 0%, #f59f00 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 0;
+        }
+        .category-content {
+            background: #f8f9fa;
+            border-radius: 0 0 10px 10px;
+            padding: 20px;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #fd7e14 0%, #f59f00 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        .wiki-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #fd7e14;
+        }
+        .add-wiki-btn {
+            border: 2px dashed #fd7e14;
+            background: transparent;
+            color: #fd7e14;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        .add-wiki-btn:hover {
+            background: #fff8f0;
+            border-color: #dc6902;
+        }
+        .wiki-type-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8rem;
+        }
+        .difficulty-indicator {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            margin-top: 10px;
+        }
+        .difficulty-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    {{ template "header" . }}
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-5 fw-bold mb-3" data-i18n="wiki.title">知识库</h1>
+                    <p class="lead mb-0" data-i18n="wiki.subtitle">收藏和管理MCP使用指南、AI术语和技术文档</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="text-end">
+                        <button class="btn btn-light btn-lg" onclick="showAddWikiModal()">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            <span data-i18n="wiki.add.entry">添加条目</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- AI编程指南分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-robot me-2"></i>
+                <span data-i18n="wiki.category.ai">AI编程指南</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="aiProgramming">
+                    <!-- AI编程指南将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card wiki-card add-wiki-btn" onclick="showAddWikiModal('ai')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="wiki.add.ai">添加AI编程指南</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Claude Code分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-chat-dots me-2"></i>
+                <span data-i18n="wiki.category.claude">Claude Code使用</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="claudeCode">
+                    <!-- Claude Code教程将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card wiki-card add-wiki-btn" onclick="showAddWikiModal('claude')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="wiki.add.claude">添加Claude教程</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MCP协议分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-plugin me-2"></i>
+                <span data-i18n="wiki.category.mcp">MCP协议</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="mcpProtocol">
+                    <!-- MCP协议文档将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card wiki-card add-wiki-btn" onclick="showAddWikiModal('mcp')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="wiki.add.mcp">添加MCP文档</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI术语词典分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-journal-bookmark me-2"></i>
+                <span data-i18n="wiki.category.terms">AI术语词典</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="aiTerms">
+                    <!-- AI术语将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card wiki-card add-wiki-btn" onclick="showAddWikiModal('terms')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="wiki.add.terms">添加术语词条</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实践案例分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-lightbulb me-2"></i>
+                <span data-i18n="wiki.category.examples">实践案例</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="practiceExamples">
+                    <!-- 实践案例将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card wiki-card add-wiki-btn" onclick="showAddWikiModal('examples')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="wiki.add.examples">添加实践案例</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加Wiki条目模态框 -->
+    <div class="modal fade" id="addWikiModal" tabindex="-1" aria-labelledby="addWikiModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addWikiModalLabel">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        <span data-i18n="wiki.add.entry">添加知识条目</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addWikiForm">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="wikiTitle" class="form-label">
+                                    <i class="bi bi-type me-1"></i>
+                                    <span data-i18n="wiki.form.title">条目标题</span> *
+                                </label>
+                                <input type="text" class="form-control" id="wikiTitle" required 
+                                       data-i18n-placeholder="wiki.form.title.placeholder" 
+                                       placeholder="例如：MCP协议详解">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="wikiCategory" class="form-label">
+                                    <i class="bi bi-folder me-1"></i>
+                                    <span data-i18n="wiki.form.category">分类</span>
+                                </label>
+                                <select class="form-select" id="wikiCategory">
+                                    <option value="ai" data-i18n="wiki.category.ai">AI编程指南</option>
+                                    <option value="claude" data-i18n="wiki.category.claude">Claude Code使用</option>
+                                    <option value="mcp" data-i18n="wiki.category.mcp">MCP协议</option>
+                                    <option value="terms" data-i18n="wiki.category.terms">AI术语词典</option>
+                                    <option value="examples" data-i18n="wiki.category.examples">实践案例</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiType" class="form-label">
+                                    <i class="bi bi-bookmark me-1"></i>
+                                    <span data-i18n="wiki.form.type">条目类型</span>
+                                </label>
+                                <select class="form-select" id="wikiType">
+                                    <option value="guide" data-i18n="wiki.type.guide">使用指南</option>
+                                    <option value="reference" data-i18n="wiki.type.reference">参考文档</option>
+                                    <option value="tutorial" data-i18n="wiki.type.tutorial">教程</option>
+                                    <option value="glossary" data-i18n="wiki.type.glossary">术语解释</option>
+                                    <option value="example" data-i18n="wiki.type.example">示例代码</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiDifficulty" class="form-label">
+                                    <i class="bi bi-bar-chart me-1"></i>
+                                    <span data-i18n="wiki.form.difficulty">难度等级</span>
+                                </label>
+                                <select class="form-select" id="wikiDifficulty">
+                                    <option value="beginner" data-i18n="wiki.difficulty.beginner">入门</option>
+                                    <option value="intermediate" data-i18n="wiki.difficulty.intermediate">中级</option>
+                                    <option value="advanced" data-i18n="wiki.difficulty.advanced">高级</option>
+                                    <option value="expert" data-i18n="wiki.difficulty.expert">专家</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="wikiUrl" class="form-label">
+                                    <i class="bi bi-link me-1"></i>
+                                    <span data-i18n="wiki.form.url">链接地址</span> *
+                                </label>
+                                <input type="url" class="form-control" id="wikiUrl" required 
+                                       data-i18n-placeholder="wiki.form.url.placeholder"
+                                       placeholder="https://docs.example.com/mcp-guide">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="wikiDescription" class="form-label">
+                                    <i class="bi bi-file-text me-1"></i>
+                                    <span data-i18n="wiki.form.description">描述</span>
+                                </label>
+                                <textarea class="form-control" id="wikiDescription" rows="4"
+                                         data-i18n-placeholder="wiki.form.description.placeholder" 
+                                         placeholder="详细描述这个知识条目的内容、适用场景和要点..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiTags" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>
+                                    <span data-i18n="wiki.form.tags">标签</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiTags" 
+                                       data-i18n-placeholder="wiki.form.tags.placeholder"
+                                       placeholder="MCP,协议,Claude,API">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiKeywords" class="form-label">
+                                    <i class="bi bi-search me-1"></i>
+                                    <span data-i18n="wiki.form.keywords">关键词</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiKeywords" 
+                                       data-i18n-placeholder="wiki.form.keywords.placeholder"
+                                       placeholder="用于搜索的关键词">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="wikiOfficial">
+                                    <label class="form-check-label" for="wikiOfficial">
+                                        <i class="bi bi-patch-check me-1"></i>
+                                        <span data-i18n="wiki.form.official">官方文档</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="wikiFavorite">
+                                    <label class="form-check-label" for="wikiFavorite">
+                                        <i class="bi bi-star me-1"></i>
+                                        <span data-i18n="wiki.form.favorite">重要条目</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="wikiFrequent">
+                                    <label class="form-check-label" for="wikiFrequent">
+                                        <i class="bi bi-arrow-repeat me-1"></i>
+                                        <span data-i18n="wiki.form.frequent">常用条目</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <span data-i18n="common.cancel">取消</span>
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="addWikiEntry()">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        <span data-i18n="wiki.add.entry">添加条目</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 知识搜索功能 -->
+    <div class="container mb-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title text-center mb-3">
+                            <i class="bi bi-search me-2"></i>
+                            <span data-i18n="wiki.search.title">知识搜索</span>
+                        </h5>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="wikiSearchInput" 
+                                   data-i18n-placeholder="wiki.search.placeholder"
+                                   placeholder="搜索MCP、AI术语、技术文档...">
+                            <button class="btn btn-outline-warning" type="button" onclick="searchWiki()">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                        <div id="searchResults" class="mt-3" style="display: none;">
+                            <!-- 搜索结果将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/static/js/i18n.js"></script>
+    
+    <script>
+        // 全局变量
+        let currentCategory = '';
+        let wikiData = {};
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadWikiEntries();
+        });
+        
+        // 加载Wiki条目数据
+        async function loadWikiEntries() {
+            try {
+                const response = await fetch('/api/wiki');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load wiki entries:', data.error);
+                    return;
+                }
+                
+                wikiData = data.entries || {};
+                renderWikiEntries();
+                
+            } catch (error) {
+                console.error('Error loading wiki entries:', error);
+            }
+        }
+        
+        // 渲染Wiki条目列表
+        function renderWikiEntries() {
+            const categories = ['ai', 'claude', 'mcp', 'terms', 'examples'];
+            
+            categories.forEach(category => {
+                const container = document.getElementById(category === 'ai' ? 'aiProgramming' : 
+                                                       category === 'claude' ? 'claudeCode' :
+                                                       category === 'mcp' ? 'mcpProtocol' :
+                                                       category === 'terms' ? 'aiTerms' : 'practiceExamples');
+                const entries = wikiData[category] || [];
+                
+                // 清空现有内容，保留添加按钮
+                const addBtn = container.querySelector('.add-wiki-btn').closest('.col-md-4');
+                container.innerHTML = '';
+                container.appendChild(addBtn);
+                
+                // 渲染条目卡片
+                entries.forEach(entry => {
+                    const entryCard = createWikiEntryCard(entry);
+                    container.insertBefore(entryCard, addBtn);
+                });
+            });
+        }
+        
+        // 创建Wiki条目卡片
+        function createWikiEntryCard(entry) {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 col-lg-3 mb-4';
+            
+            const typeBadge = getWikiTypeBadge(entry.metadata.type);
+            const difficultyBar = getDifficultyBar(entry.metadata.difficulty);
+            const officialIcon = entry.metadata.official === 'true' ? '<i class="bi bi-patch-check text-success me-1"></i>' : '';
+            const favoriteIcon = entry.favorite ? '<i class="bi bi-star-fill text-warning position-absolute top-0 start-0 m-2"></i>' : '';
+            const frequentIcon = entry.metadata.frequent === 'true' ? '<i class="bi bi-arrow-repeat text-info position-absolute top-0 end-0 m-2" style="right: 30px !important;"></i>' : '';
+            
+            col.innerHTML = `
+                <div class="card wiki-card h-100 position-relative">
+                    ${favoriteIcon}
+                    ${frequentIcon}
+                    ${typeBadge}
+                    <div class="card-body">
+                        <div class="wiki-icon text-center">
+                            <i class="bi bi-wikipedia"></i>
+                        </div>
+                        <h6 class="card-title">${officialIcon}${entry.title}</h6>
+                        <p class="card-text text-muted small">${entry.description || ''}</p>
+                        ${entry.tags ? `<div class="mb-2">${entry.tags.split(',').map(tag => `<span class="badge bg-light text-dark me-1">${tag.trim()}</span>`).join('')}</div>` : ''}
+                        ${difficultyBar}
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <a href="${entry.url}" target="_blank" class="btn btn-warning btn-sm">
+                                <i class="bi bi-box-arrow-up-right"></i> 查看
+                            </a>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="editWikiEntry('${entry.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteWikiEntry('${entry.id}', '${entry.category}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+        
+        // 获取Wiki类型徽章
+        function getWikiTypeBadge(type) {
+            const badges = {
+                'guide': '<span class="badge bg-primary wiki-type-badge">指南</span>',
+                'reference': '<span class="badge bg-info wiki-type-badge">参考</span>',
+                'tutorial': '<span class="badge bg-success wiki-type-badge">教程</span>',
+                'glossary': '<span class="badge bg-warning wiki-type-badge">术语</span>',
+                'example': '<span class="badge bg-secondary wiki-type-badge">示例</span>'
+            };
+            return badges[type] || '';
+        }
+        
+        // 获取难度指示条
+        function getDifficultyBar(difficulty) {
+            const levels = {
+                'beginner': {width: '25%', color: '#28a745'},
+                'intermediate': {width: '50%', color: '#ffc107'},
+                'advanced': {width: '75%', color: '#fd7e14'},
+                'expert': {width: '100%', color: '#dc3545'}
+            };
+            
+            const level = levels[difficulty] || {width: '0%', color: '#e9ecef'};
+            
+            return `
+                <div class="difficulty-indicator">
+                    <div class="difficulty-fill" style="width: ${level.width}; background-color: ${level.color};"></div>
+                </div>
+                <small class="text-muted">难度: ${difficulty || '未知'}</small>
+            `;
+        }
+        
+        // 显示添加Wiki条目模态框
+        function showAddWikiModal(category = '') {
+            currentCategory = category;
+            if (category) {
+                document.getElementById('wikiCategory').value = category;
+            }
+            
+            // 重置表单
+            document.getElementById('addWikiForm').reset();
+            
+            const modal = new bootstrap.Modal(document.getElementById('addWikiModal'));
+            modal.show();
+        }
+        
+        // 添加Wiki条目
+        async function addWikiEntry() {
+            const title = document.getElementById('wikiTitle').value.trim();
+            const category = document.getElementById('wikiCategory').value;
+            const type = document.getElementById('wikiType').value;
+            const difficulty = document.getElementById('wikiDifficulty').value;
+            const url = document.getElementById('wikiUrl').value.trim();
+            const description = document.getElementById('wikiDescription').value.trim();
+            const tags = document.getElementById('wikiTags').value.trim();
+            const keywords = document.getElementById('wikiKeywords').value.trim();
+            const official = document.getElementById('wikiOfficial').checked;
+            const favorite = document.getElementById('wikiFavorite').checked;
+            const frequent = document.getElementById('wikiFrequent').checked;
+            
+            if (!title || !url) {
+                alert('请填写条目标题和链接地址');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/wiki', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        category: category,
+                        type: type,
+                        difficulty: difficulty,
+                        url: url,
+                        description: description,
+                        tags: tags,
+                        keywords: keywords,
+                        official: official,
+                        favorite: favorite,
+                        frequent: frequent
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('添加失败: ' + data.error);
+                    return;
+                }
+                
+                alert('知识条目添加成功！');
+                
+                // 隐藏模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addWikiModal'));
+                modal.hide();
+                
+                // 重新加载条目列表
+                loadWikiEntries();
+                
+            } catch (error) {
+                console.error('Error adding wiki entry:', error);
+                alert('添加失败: ' + error.message);
+            }
+        }
+        
+        // 搜索Wiki条目
+        async function searchWiki() {
+            const query = document.getElementById('wikiSearchInput').value.trim();
+            if (!query) {
+                document.getElementById('searchResults').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wiki/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Search failed:', data.error);
+                    return;
+                }
+                
+                displaySearchResults(data.results || []);
+                
+            } catch (error) {
+                console.error('Error searching wiki:', error);
+            }
+        }
+        
+        // 显示搜索结果
+        function displaySearchResults(results) {
+            const container = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">未找到匹配的条目</div>';
+            } else {
+                let html = `<h6>搜索结果 (${results.length}个条目):</h6><div class="list-group">`;
+                
+                results.forEach(result => {
+                    const officialIcon = result.metadata.official === 'true' ? '<i class="bi bi-patch-check text-success me-1"></i>' : '';
+                    html += `
+                        <a href="${result.url}" target="_blank" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${officialIcon}${result.title}</h6>
+                                <small class="text-muted">${result.category}</small>
+                            </div>
+                            <p class="mb-1 text-muted">${result.description || ''}</p>
+                            ${result.tags ? `<small class="text-muted">标签: ${result.tags}</small>` : ''}
+                        </a>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            }
+            
+            container.style.display = 'block';
+        }
+        
+        // 删除Wiki条目
+        async function deleteWikiEntry(entryId, category) {
+            if (!confirm('确定要删除这个知识条目吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wiki/${entryId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('删除失败: ' + data.error);
+                    return;
+                }
+                
+                alert('知识条目删除成功！');
+                loadWikiEntries();
+                
+            } catch (error) {
+                console.error('Error deleting wiki entry:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+        
+        // 编辑Wiki条目
+        function editWikiEntry(entryId) {
+            // TODO: 实现编辑功能
+            alert('编辑功能即将推出');
+        }
+        
+        // 回车键搜索
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && document.activeElement.id === 'wikiSearchInput') {
+                searchWiki();
+            }
+        });
+    </script>
+</body>
+</html>
+{{ end }}

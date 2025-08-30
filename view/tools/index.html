@@ -1,0 +1,452 @@
+{{ define "tools/index.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="tools.title">工具箱</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .tool-card {
+            transition: all 0.3s ease;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+        }
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-color: #007bff;
+        }
+        .category-section {
+            margin-bottom: 40px;
+        }
+        .category-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 0;
+        }
+        .category-content {
+            background: #f8f9fa;
+            border-radius: 0 0 10px 10px;
+            padding: 20px;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        .tool-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #007bff;
+        }
+        .add-tool-btn {
+            border: 2px dashed #007bff;
+            background: transparent;
+            color: #007bff;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        .add-tool-btn:hover {
+            background: #f8f9ff;
+            border-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    {{ template "header" . }}
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-5 fw-bold mb-3" data-i18n="tools.title">工具箱</h1>
+                    <p class="lead mb-0" data-i18n="tools.subtitle">收藏和管理您常用的工具软件和在线工具</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="text-end">
+                        <button class="btn btn-light btn-lg" onclick="showAddToolModal()">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            <span data-i18n="tools.add.tool">添加工具</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 开发工具分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-code-slash me-2"></i>
+                <span data-i18n="tools.category.development">开发工具</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="developmentTools">
+                    <!-- 开发工具将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('development')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="tools.add.development">添加开发工具</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 在线工具分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-globe me-2"></i>
+                <span data-i18n="tools.category.online">在线工具</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="onlineTools">
+                    <!-- 在线工具将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('online')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="tools.add.online">添加在线工具</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统工具分类 -->
+        <div class="category-section">
+            <h3 class="category-header">
+                <i class="bi bi-gear me-2"></i>
+                <span data-i18n="tools.category.system">系统工具</span>
+            </h3>
+            <div class="category-content">
+                <div class="row" id="systemTools">
+                    <!-- 系统工具将在这里动态加载 -->
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('system')">
+                            <div class="card-body">
+                                <i class="bi bi-plus-circle fs-1"></i>
+                                <p class="mb-0" data-i18n="tools.add.system">添加系统工具</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加工具模态框 -->
+    <div class="modal fade" id="addToolModal" tabindex="-1" aria-labelledby="addToolModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addToolModalLabel">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        <span data-i18n="tools.add.tool">添加工具</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addToolForm">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="toolName" class="form-label">
+                                    <i class="bi bi-type me-1"></i>
+                                    <span data-i18n="tools.form.name">工具名称</span> *
+                                </label>
+                                <input type="text" class="form-control" id="toolName" required 
+                                       data-i18n-placeholder="tools.form.name.placeholder" 
+                                       placeholder="例如：VSCode">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="toolCategory" class="form-label">
+                                    <i class="bi bi-folder me-1"></i>
+                                    <span data-i18n="tools.form.category">分类</span>
+                                </label>
+                                <select class="form-select" id="toolCategory">
+                                    <option value="development" data-i18n="tools.category.development">开发工具</option>
+                                    <option value="online" data-i18n="tools.category.online">在线工具</option>
+                                    <option value="system" data-i18n="tools.category.system">系统工具</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="toolIcon" class="form-label">
+                                    <i class="bi bi-image me-1"></i>
+                                    <span data-i18n="tools.form.icon">图标</span>
+                                </label>
+                                <input type="text" class="form-control" id="toolIcon" 
+                                       data-i18n-placeholder="tools.form.icon.placeholder"
+                                       placeholder="Bootstrap图标名称，如：code-slash">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="toolUrl" class="form-label">
+                                    <i class="bi bi-link me-1"></i>
+                                    <span data-i18n="tools.form.url">链接地址</span> *
+                                </label>
+                                <input type="url" class="form-control" id="toolUrl" required 
+                                       data-i18n-placeholder="tools.form.url.placeholder"
+                                       placeholder="https://code.visualstudio.com/">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="toolDescription" class="form-label">
+                                    <i class="bi bi-file-text me-1"></i>
+                                    <span data-i18n="tools.form.description">描述</span>
+                                </label>
+                                <textarea class="form-control" id="toolDescription" rows="3"
+                                         data-i18n-placeholder="tools.form.description.placeholder" 
+                                         placeholder="简要描述这个工具的功能和特点..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="toolTags" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>
+                                    <span data-i18n="tools.form.tags">标签</span>
+                                </label>
+                                <input type="text" class="form-control" id="toolTags" 
+                                       data-i18n-placeholder="tools.form.tags.placeholder"
+                                       placeholder="用逗号分隔，如：编辑器,开发,微软">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="toolFavorite">
+                                    <label class="form-check-label" for="toolFavorite">
+                                        <i class="bi bi-star me-1"></i>
+                                        <span data-i18n="tools.form.favorite">标记为收藏</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <span data-i18n="common.cancel">取消</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="addTool()">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        <span data-i18n="tools.add.tool">添加工具</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/static/js/i18n.js"></script>
+    
+    <script>
+        // 全局变量
+        let currentCategory = '';
+        let toolsData = {};
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTools();
+        });
+        
+        // 加载工具数据
+        async function loadTools() {
+            try {
+                const response = await fetch('/api/tools');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load tools:', data.error);
+                    return;
+                }
+                
+                toolsData = data.tools || {};
+                renderTools();
+                
+            } catch (error) {
+                console.error('Error loading tools:', error);
+            }
+        }
+        
+        // 渲染工具列表
+        function renderTools() {
+            const categories = ['development', 'online', 'system'];
+            
+            categories.forEach(category => {
+                const container = document.getElementById(category + 'Tools');
+                const tools = toolsData[category] || [];
+                
+                // 清空现有内容，保留添加按钮
+                const addBtn = container.querySelector('.add-tool-btn').closest('.col-md-4');
+                container.innerHTML = '';
+                container.appendChild(addBtn);
+                
+                // 渲染工具卡片
+                tools.forEach(tool => {
+                    const toolCard = createToolCard(tool);
+                    container.insertBefore(toolCard, addBtn);
+                });
+            });
+        }
+        
+        // 创建工具卡片
+        function createToolCard(tool) {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 col-lg-3 mb-4';
+            
+            const iconClass = tool.icon ? `bi bi-${tool.icon}` : 'bi bi-tools';
+            const favoriteIcon = tool.favorite ? '<i class="bi bi-star-fill text-warning position-absolute top-0 end-0 m-2"></i>' : '';
+            
+            col.innerHTML = `
+                <div class="card tool-card h-100 position-relative">
+                    ${favoriteIcon}
+                    <div class="card-body text-center">
+                        <div class="tool-icon">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <h6 class="card-title">${tool.name}</h6>
+                        <p class="card-text text-muted small">${tool.description || ''}</p>
+                        ${tool.tags ? `<div class="mb-2">${tool.tags.split(',').map(tag => `<span class="badge bg-light text-dark me-1">${tag.trim()}</span>`).join('')}</div>` : ''}
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="${tool.url}" target="_blank" class="btn btn-primary btn-sm">
+                                <i class="bi bi-box-arrow-up-right"></i> 打开
+                            </a>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="editTool('${tool.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTool('${tool.id}', '${tool.category}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+        
+        // 显示添加工具模态框
+        function showAddToolModal(category = '') {
+            currentCategory = category;
+            if (category) {
+                document.getElementById('toolCategory').value = category;
+            }
+            
+            // 重置表单
+            document.getElementById('addToolForm').reset();
+            
+            const modal = new bootstrap.Modal(document.getElementById('addToolModal'));
+            modal.show();
+        }
+        
+        // 添加工具
+        async function addTool() {
+            const name = document.getElementById('toolName').value.trim();
+            const category = document.getElementById('toolCategory').value;
+            const icon = document.getElementById('toolIcon').value.trim();
+            const url = document.getElementById('toolUrl').value.trim();
+            const description = document.getElementById('toolDescription').value.trim();
+            const tags = document.getElementById('toolTags').value.trim();
+            const favorite = document.getElementById('toolFavorite').checked;
+            
+            if (!name || !url) {
+                alert('请填写工具名称和链接地址');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tools', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        category: category,
+                        icon: icon,
+                        url: url,
+                        description: description,
+                        tags: tags,
+                        favorite: favorite
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('添加失败: ' + data.error);
+                    return;
+                }
+                
+                alert('工具添加成功！');
+                
+                // 隐藏模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addToolModal'));
+                modal.hide();
+                
+                // 重新加载工具列表
+                loadTools();
+                
+            } catch (error) {
+                console.error('Error adding tool:', error);
+                alert('添加失败: ' + error.message);
+            }
+        }
+        
+        // 删除工具
+        async function deleteTool(toolId, category) {
+            if (!confirm('确定要删除这个工具吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/tools/${toolId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('删除失败: ' + data.error);
+                    return;
+                }
+                
+                alert('工具删除成功！');
+                loadTools();
+                
+            } catch (error) {
+                console.error('Error deleting tool:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+        
+        // 编辑工具
+        function editTool(toolId) {
+            // TODO: 实现编辑功能
+            alert('编辑功能即将推出');
+        }
+    </script>
+</body>
+</html>
+{{ end }}

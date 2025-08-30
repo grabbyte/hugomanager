@@ -665,6 +665,73 @@ func repairArticleDate(filePath string) error {
     return nil
 }
 
+// Claude Prompt: 提取部分正确的时间信息的容错函数
+// extractPartialDateInfo 从错误的日期字符串中提取部分正确的信息
+func extractPartialDateInfo(dateStr string, fallbackTime time.Time) (time.Time, int, time.Month, int, string) {
+    // 尝试从日期字符串中提取年月日信息
+    var year int
+    var month int
+    var day int
+    
+    // 使用正则表达式尝试提取年份 (4位数字)
+    yearRegex := regexp.MustCompile(`(\d{4})`)
+    if matches := yearRegex.FindStringSubmatch(dateStr); len(matches) > 1 {
+        if parsedYear, err := strconv.Atoi(matches[1]); err == nil && parsedYear > 1900 && parsedYear < 3000 {
+            year = parsedYear
+        }
+    }
+    
+    // 尝试提取月份和日期 (格式如 2023-01-15, 2023/01/15 等)
+    datePartRegex := regexp.MustCompile(`(\d{4})[-/](\d{1,2})[-/](\d{1,2})`)
+    if matches := datePartRegex.FindStringSubmatch(dateStr); len(matches) > 3 {
+        if parsedYear, err := strconv.Atoi(matches[1]); err == nil && parsedYear > 1900 && parsedYear < 3000 {
+            year = parsedYear
+        }
+        if parsedMonth, err := strconv.Atoi(matches[2]); err == nil && parsedMonth >= 1 && parsedMonth <= 12 {
+            month = parsedMonth
+        }
+        if parsedDay, err := strconv.Atoi(matches[3]); err == nil && parsedDay >= 1 && parsedDay <= 31 {
+            day = parsedDay
+        }
+    }
+    
+    // 如果无法提取有效信息，使用fallback时间
+    if year == 0 {
+        year = fallbackTime.Year()
+    }
+    if month == 0 {
+        month = int(fallbackTime.Month())
+    }
+    if day == 0 {
+        day = fallbackTime.Day()
+    }
+    
+    // 尝试构建时间，如果失败则使用fallback
+    var publishDate time.Time
+    if month >= 1 && month <= 12 && day >= 1 && day <= 31 {
+        // 使用本地时区创建时间
+        loc, _ := time.LoadLocation("Asia/Shanghai")
+        publishDate = time.Date(year, time.Month(month), day, 12, 0, 0, 0, loc)
+        
+        // 验证日期是否有效（例如2月30日会自动调整）
+        if publishDate.Year() != year || int(publishDate.Month()) != month || publishDate.Day() != day {
+            publishDate = fallbackTime
+            year = fallbackTime.Year()
+            month = int(fallbackTime.Month())
+            day = fallbackTime.Day()
+        }
+    } else {
+        publishDate = fallbackTime
+        year = fallbackTime.Year()
+        month = int(fallbackTime.Month())
+        day = fallbackTime.Day()
+    }
+    
+    formattedTime := publishDate.Format("2006-01-02 15:04:05")
+    
+    return publishDate, year, time.Month(month), day, formattedTime
+}
+
 // Claude Prompt: 在Front Matter中替换日期字段
 // replaceDateInFrontMatter 在Front Matter中替换日期字段
 func replaceDateInFrontMatter(content, newDate string) string {
@@ -731,7 +798,7 @@ func RepairAllArticleDates(c *gin.Context) {
 
         totalFiles++
         relativePath := strings.TrimPrefix(path, contentPath)
-        relativePath = strings.TrimPrefix(relativePath, string(os.PathSeparator))
+        relativePath = strings.TrimPrefix(relativePath, "/")
 
         // 尝试修复文件的时间格式
         if err := repairArticleDate(path); err != nil {
@@ -856,7 +923,7 @@ func CheckDateFormats(c *gin.Context) {
 
         totalFiles++
         relativePath := strings.TrimPrefix(path, contentPath)
-        relativePath = strings.TrimPrefix(relativePath, string(os.PathSeparator))
+        relativePath = strings.TrimPrefix(relativePath, "/")
 
         // 读取文件并检查时间格式
         data, err := os.ReadFile(path)
@@ -1001,12 +1068,8 @@ func readArticleContentWithAnalysis(filePath, relativePath string, modTime time.
             displayDay = parsed.Day()
             formattedTime = parsed.Format("2006-01-02 15:04:05")
         } else {
-            // 如果日期解析失败，使用文件修改时间
-            publishDate = modTime
-            displayYear = modTime.Year()
-            displayMonth = modTime.Month()
-            displayDay = modTime.Day()
-            formattedTime = modTime.Format("2006-01-02 15:04:05")
+            // 如果日期解析失败，尝试提取部分正确的时间信息
+            publishDate, displayYear, displayMonth, displayDay, formattedTime = extractPartialDateInfo(date, modTime)
         }
     } else {
         // 如果没有日期字段，使用文件修改时间

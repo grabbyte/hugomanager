@@ -252,6 +252,7 @@ func Start() {
 	r.GET("/api/directory-tree", controller.GetDirectoryTree)
 	r.GET("/api/files", controller.GetFiles)
 	r.GET("/api/file-content", controller.GetFileContent)
+	r.GET("/api/article/preview", controller.PreviewArticle)
 	r.POST("/api/save-file", controller.SaveFileContent)
 	r.POST("/api/upload-image", controller.UploadImageFile)
 	r.POST("/api/upload-image-base64", controller.UploadImageBase64)
@@ -263,6 +264,35 @@ func Start() {
 	r.POST("/api/repair-single-date", controller.RepairSingleArticleDate)
 	r.GET("/api/check-date-formats", controller.CheckDateFormats)
 	r.GET("/api/debug-path", controller.DebugPath)
+
+	// 收藏管理页面路由
+	r.GET("/tools", controller.ToolsPage)
+	r.GET("/books", controller.BooksPage) 
+	r.GET("/wiki", controller.WikiPage)
+	
+	// 收藏管理API路由
+	r.GET("/api/tools", controller.GetTools)
+	r.POST("/api/tools", controller.AddTool)
+	r.DELETE("/api/tools/:id", func(c *gin.Context) {
+		c.Set("type", "tools")
+		controller.DeleteCollectionItem(c)
+	})
+	
+	r.GET("/api/books", controller.GetBooks)
+	r.POST("/api/books", controller.AddBook)
+	r.DELETE("/api/books/:id", func(c *gin.Context) {
+		c.Set("type", "books")
+		controller.DeleteCollectionItem(c)
+	})
+	
+	
+	r.GET("/api/wiki", controller.GetWikiEntries)
+	r.POST("/api/wiki", controller.AddWikiEntry)
+	r.GET("/api/wiki/search", controller.SearchWikiEntries)
+	r.DELETE("/api/wiki/:id", func(c *gin.Context) {
+		c.Set("type", "wiki")
+		controller.DeleteCollectionItem(c)
+	})
 
 	// 多语言相关路由
 	r.GET("/api/languages", controller.GetLanguages)
