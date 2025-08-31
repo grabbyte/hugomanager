@@ -203,12 +203,12 @@
                                     <span data-i18n="books.form.rating">评分</span>
                                 </label>
                                 <select class="form-select" id="bookRating">
-                                    <option value="">未评分</option>
-                                    <option value="5">★★★★★ (5分)</option>
-                                    <option value="4">★★★★☆ (4分)</option>
-                                    <option value="3">★★★☆☆ (3分)</option>
-                                    <option value="2">★★☆☆☆ (2分)</option>
-                                    <option value="1">★☆☆☆☆ (1分)</option>
+                                    <option value="" data-i18n="books.rating.unrated">未评分</option>
+                                    <option value="5" data-i18n="books.rating.5">★★★★★ (5分)</option>
+                                    <option value="4" data-i18n="books.rating.4">★★★★☆ (4分)</option>
+                                    <option value="3" data-i18n="books.rating.3">★★★☆☆ (3分)</option>
+                                    <option value="2" data-i18n="books.rating.2">★★☆☆☆ (2分)</option>
+                                    <option value="1" data-i18n="books.rating.1">★☆☆☆☆ (1分)</option>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -357,7 +357,7 @@
                             <div class="card book-card add-book-btn" onclick="showAddBookModal('${category.id}')">
                                 <div class="card-body">
                                     <i class="bi bi-plus-circle fs-1"></i>
-                                    <p class="mb-0">添加书籍</p>
+                                    <p class="mb-0" data-i18n="books.add.book">添加书籍</p>
                                 </div>
                             </div>
                         </div>

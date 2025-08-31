@@ -108,7 +108,7 @@
             <!-- 左侧目录树 -->
             <div class="col-md-3 sidebar p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">静态文件目录</h5>
+                    <h5 class="mb-0" data-i18n="images.directory.title">静态文件目录</h5>
                     <button class="btn btn-sm btn-outline-primary" onclick="refreshDirectories()">
                         <i class="bi bi-arrow-clockwise"></i>
                     </button>
@@ -120,14 +120,14 @@
                         <div class="row text-center">
                             <div class="col-12 mb-2">
                                 <h6 class="card-title mb-1" id="totalFiles">0</h6>
-                                <small>个文件</small>
+                                <small data-i18n="images.files.count">个文件</small>
                             </div>
                             <div class="col-12 mb-2">
                                 <h6 class="card-title mb-1" id="totalSize">0 B</h6>
-                                <small>总大小</small>
+                                <small data-i18n="images.total.size">总大小</small>
                             </div>
                             <div class="col-12">
-                                <small id="imageStats">图片: 0个 (0 B)</small>
+                                <small id="imageStats" data-i18n="images.stats.template">图片: 0个 (0 B)</small>
                             </div>
                         </div>
                     </div>
@@ -136,10 +136,10 @@
                 <!-- 操作按钮 -->
                 <div class="d-grid gap-2 mb-3">
                     <button class="btn btn-primary" onclick="showUploadModal()">
-                        <i class="bi bi-cloud-upload"></i> 上传文件
+                        <i class="bi bi-cloud-upload"></i> <span data-i18n="images.upload.files">上传文件</span>
                     </button>
                     <button class="btn btn-outline-success" onclick="showCreateFolderModal()">
-                        <i class="bi bi-folder-plus"></i> 新建文件夹
+                        <i class="bi bi-folder-plus"></i> <span data-i18n="images.create.folder">新建文件夹</span>
                     </button>
                 </div>
                 
@@ -147,7 +147,7 @@
                 <div id="directoryTree">
                     <div class="text-center text-muted">
                         <div class="spinner-border spinner-border-sm" role="status"></div>
-                        <div>加载中...</div>
+                        <div data-i18n="common.loading">加载中...</div>
                     </div>
                 </div>
             </div>
@@ -160,23 +160,23 @@
                         <div>
                             <h5 class="mb-1">
                                 <i class="bi bi-folder-open"></i>
-                                <span id="currentPath">静态文件</span>
+                                <span id="currentPath" data-i18n="images.static.files">静态文件</span>
                             </h5>
-                            <small class="text-muted" id="imageInfo">加载中...</small>
+                            <small class="text-muted" id="imageInfo" data-i18n="common.loading">加载中...</small>
                         </div>
                         <div>
                             <div class="btn-group" role="group">
                                 <button class="btn btn-outline-primary" onclick="selectAll()">
-                                    <i class="bi bi-check-all"></i> 全选
+                                    <i class="bi bi-check-all"></i> <span data-i18n="images.select.all">全选</span>
                                 </button>
                                 <button class="btn btn-outline-secondary" onclick="clearSelection()">
-                                    <i class="bi bi-x"></i> 取消选择
+                                    <i class="bi bi-x"></i> <span data-i18n="images.clear.selection">取消选择</span>
                                 </button>
                                 <button class="btn btn-outline-danger" onclick="deleteSelected()" id="deleteBtn" disabled>
-                                    <i class="bi bi-trash"></i> 删除选中
+                                    <i class="bi bi-trash"></i> <span data-i18n="images.delete.selected">删除选中</span>
                                 </button>
                                 <button class="btn btn-outline-success" onclick="refreshImages()">
-                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                    <i class="bi bi-arrow-clockwise"></i> <span data-i18n="common.refresh">刷新</span>
                                 </button>
                             </div>
                         </div>
@@ -192,7 +192,7 @@
                                     <i class="bi bi-files text-primary fs-4"></i>
                                     <div class="mt-1">
                                         <strong id="detailTotalFiles">0</strong>
-                                        <div class="small text-muted">总文件数</div>
+                                        <div class="small text-muted" data-i18n="images.total.files.count">总文件数</div>
                                     </div>
                                 </div>
                             </div>
@@ -203,7 +203,7 @@
                                     <i class="bi bi-hdd text-success fs-4"></i>
                                     <div class="mt-1">
                                         <strong id="detailTotalSize">0 B</strong>
-                                        <div class="small text-muted">总容量</div>
+                                        <div class="small text-muted" data-i18n="images.total.capacity">总容量</div>
                                     </div>
                                 </div>
                             </div>
@@ -214,7 +214,7 @@
                                     <i class="bi bi-image text-info fs-4"></i>
                                     <div class="mt-1">
                                         <strong id="detailImageCount">0</strong>
-                                        <div class="small text-muted">图片文件</div>
+                                        <div class="small text-muted" data-i18n="images.image.files">图片文件</div>
                                     </div>
                                 </div>
                             </div>
@@ -225,7 +225,7 @@
                                     <i class="bi bi-pie-chart text-warning fs-4"></i>
                                     <div class="mt-1">
                                         <strong id="detailImageSize">0 B</strong>
-                                        <div class="small text-muted">图片容量</div>
+                                        <div class="small text-muted" data-i18n="images.image.capacity">图片容量</div>
                                     </div>
                                 </div>
                             </div>
@@ -242,10 +242,10 @@
                     <!-- 空状态 -->
                     <div id="emptyState" class="text-center py-5" style="display: none;">
                         <i class="bi bi-image fs-1 text-muted mb-3"></i>
-                        <h5 class="text-muted">暂无图片</h5>
-                        <p class="text-muted">点击上方"上传图片"按钮添加图片</p>
+                        <h5 class="text-muted" data-i18n="images.no.images">暂无图片</h5>
+                        <p class="text-muted" data-i18n="images.upload.hint">点击上方"上传图片"按钮添加图片</p>
                         <button class="btn btn-primary" onclick="showUploadModal()">
-                            <i class="bi bi-cloud-upload"></i> 立即上传
+                            <i class="bi bi-cloud-upload"></i> <span data-i18n="images.upload.now">立即上传</span>
                         </button>
                     </div>
                 </div>
@@ -259,7 +259,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-cloud-upload"></i> 上传图片
+                        <i class="bi bi-cloud-upload"></i> <span data-i18n="images.upload.images">上传图片</span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>

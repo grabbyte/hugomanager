@@ -15,6 +15,12 @@ class ArticleEditor {
         this.codeMirrorEditor = null;
         this.hasUnsavedChanges = false;
         
+        // 标签和分类管理
+        this.categories = new Set();
+        this.tags = new Set();
+        this.recentCategories = this.loadRecentCategories();
+        this.recentTags = this.loadRecentTags();
+        
         // 绑定方法到实例
         this.saveArticle = this.saveArticle.bind(this);
         this.previewArticle = this.previewArticle.bind(this);
@@ -30,6 +36,7 @@ class ArticleEditor {
             this.initDraftSwitch();
             this.initChangeTracking();
             this.initKeyboardShortcuts();
+            this.initTagsAndCategories();
         });
     }
 
@@ -141,6 +148,15 @@ class ArticleEditor {
                 e.preventDefault();
                 this.saveArticle();
             }
+            
+            // 在分类和标签输入框中按回车时自动保存
+            if (e.key === 'Enter' && e.ctrlKey) {
+                const activeElement = document.activeElement;
+                if (activeElement && (activeElement.id === 'categoryInput' || activeElement.id === 'tagInput')) {
+                    e.preventDefault();
+                    this.saveArticle();
+                }
+            }
         });
     }
 
@@ -193,6 +209,10 @@ class ArticleEditor {
         const dateInput = document.getElementById('publishDate');
         const urlInput = document.getElementById('articleURL');
         const isDraftInput = document.getElementById('isDraftInput');
+        
+        // 确保隐藏输入框是最新的
+        this.updateCategoriesInput();
+        this.updateTagsInput();
         
         // 构建更新后的Front Matter和内容
         const title = titleInput ? titleInput.value.trim() : '';
@@ -556,6 +576,249 @@ class ArticleEditor {
             }
         }
     }
+
+    /**
+     * 初始化标签和分类管理
+     */
+    initTagsAndCategories() {
+        // 初始化现有的分类和标签
+        this.loadExistingCategories();
+        this.loadExistingTags();
+        
+        // 渲染分类和标签
+        this.renderCategories();
+        this.renderTags();
+        
+        // 加载建议选项
+        this.loadCategorySuggestions();
+        this.loadTagSuggestions();
+    }
+
+    /**
+     * 加载现有的分类
+     */
+    loadExistingCategories() {
+        const categoriesInput = document.getElementById('categories');
+        if (categoriesInput && categoriesInput.value) {
+            const existingCategories = categoriesInput.value.split(',')
+                .map(cat => cat.trim())
+                .filter(cat => cat !== '');
+            existingCategories.forEach(cat => this.categories.add(cat));
+        }
+    }
+
+    /**
+     * 加载现有的标签
+     */
+    loadExistingTags() {
+        const tagsInput = document.getElementById('tags');
+        if (tagsInput && tagsInput.value) {
+            const existingTags = tagsInput.value.split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag !== '');
+            existingTags.forEach(tag => this.tags.add(tag));
+        }
+    }
+
+    /**
+     * 渲染分类标签
+     */
+    renderCategories() {
+        const container = document.getElementById('categoriesContainer');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        this.categories.forEach(category => {
+            const tagElement = this.createTagElement(category, 'category');
+            container.appendChild(tagElement);
+        });
+        
+        this.updateCategoriesInput();
+    }
+
+    /**
+     * 渲染标签
+     */
+    renderTags() {
+        const container = document.getElementById('tagsContainer');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        this.tags.forEach(tag => {
+            const tagElement = this.createTagElement(tag, 'tag');
+            container.appendChild(tagElement);
+        });
+        
+        this.updateTagsInput();
+    }
+
+    /**
+     * 创建标签元素
+     */
+    createTagElement(text, type) {
+        const tag = document.createElement('span');
+        tag.className = `tag-item ${type === 'category' ? 'category-tag' : ''}`;
+        tag.innerHTML = `${text}<span class="tag-remove" onclick="articleEditor.remove${type === 'category' ? 'Category' : 'Tag'}('${text}')">&times;</span>`;
+        return tag;
+    }
+
+    /**
+     * 添加分类
+     */
+    addCategory(category) {
+        if (!category || category.trim() === '') return;
+        
+        category = category.trim();
+        this.categories.add(category);
+        this.addToRecentCategories(category);
+        this.renderCategories();
+        this.loadCategorySuggestions();
+        
+        // 清空输入框
+        const input = document.getElementById('categoryInput');
+        if (input) input.value = '';
+    }
+
+    /**
+     * 删除分类
+     */
+    removeCategory(category) {
+        this.categories.delete(category);
+        this.renderCategories();
+    }
+
+    /**
+     * 添加标签
+     */
+    addTag(tag) {
+        if (!tag || tag.trim() === '') return;
+        
+        tag = tag.trim();
+        this.tags.add(tag);
+        this.addToRecentTags(tag);
+        this.renderTags();
+        this.loadTagSuggestions();
+        
+        // 清空输入框
+        const input = document.getElementById('tagInput');
+        if (input) input.value = '';
+    }
+
+    /**
+     * 删除标签
+     */
+    removeTag(tag) {
+        this.tags.delete(tag);
+        this.renderTags();
+    }
+
+    /**
+     * 更新隐藏的分类输入框
+     */
+    updateCategoriesInput() {
+        const input = document.getElementById('categories');
+        if (input) {
+            input.value = Array.from(this.categories).join(', ');
+        }
+    }
+
+    /**
+     * 更新隐藏的标签输入框
+     */
+    updateTagsInput() {
+        const input = document.getElementById('tags');
+        if (input) {
+            input.value = Array.from(this.tags).join(', ');
+        }
+    }
+
+    /**
+     * 加载最近使用的分类
+     */
+    loadRecentCategories() {
+        const stored = localStorage.getItem('article_recent_categories');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    /**
+     * 加载最近使用的标签
+     */
+    loadRecentTags() {
+        const stored = localStorage.getItem('article_recent_tags');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    /**
+     * 添加到最近使用的分类
+     */
+    addToRecentCategories(category) {
+        // 移除现有的同名分类（如果存在）
+        this.recentCategories = this.recentCategories.filter(c => c !== category);
+        // 添加到开头
+        this.recentCategories.unshift(category);
+        // 只保留最近20个
+        this.recentCategories = this.recentCategories.slice(0, 20);
+        // 保存到本地存储
+        localStorage.setItem('article_recent_categories', JSON.stringify(this.recentCategories));
+    }
+
+    /**
+     * 添加到最近使用的标签
+     */
+    addToRecentTags(tag) {
+        // 移除现有的同名标签（如果存在）
+        this.recentTags = this.recentTags.filter(t => t !== tag);
+        // 添加到开头
+        this.recentTags.unshift(tag);
+        // 只保留最近30个
+        this.recentTags = this.recentTags.slice(0, 30);
+        // 保存到本地存储
+        localStorage.setItem('article_recent_tags', JSON.stringify(this.recentTags));
+    }
+
+    /**
+     * 加载分类建议
+     */
+    loadCategorySuggestions() {
+        const select = document.getElementById('categorySuggestions');
+        if (!select) return;
+        
+        // 清空现有选项
+        select.innerHTML = '<option value="">选择最近使用的分类</option>';
+        
+        // 添加最近使用的分类
+        this.recentCategories.forEach(category => {
+            // 只显示尚未添加的分类
+            if (!this.categories.has(category)) {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                select.appendChild(option);
+            }
+        });
+    }
+
+    /**
+     * 加载标签建议
+     */
+    loadTagSuggestions() {
+        const select = document.getElementById('tagSuggestions');
+        if (!select) return;
+        
+        // 清空现有选项
+        select.innerHTML = '<option value="">选择最近使用的标签</option>';
+        
+        // 添加最近使用的标签
+        this.recentTags.forEach(tag => {
+            // 只显示尚未添加的标签
+            if (!this.tags.has(tag)) {
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = tag;
+                select.appendChild(option);
+            }
+        });
+    }
 }
 
 // 创建全局实例
@@ -813,3 +1076,104 @@ document.addEventListener('DOMContentLoaded', function() {
 window.checkAndFixDate = checkAndFixDate;
 window.validateDateFormat = validateDateFormat;
 window.handleImageUpload = articleEditor.handleImageUpload.bind(articleEditor);
+
+// 导出标签和分类相关函数
+window.handleCategoryKeypress = function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = document.getElementById('categoryInput');
+        if (input && input.value.trim()) {
+            articleEditor.addCategory(input.value.trim());
+        }
+    }
+};
+
+window.handleTagKeypress = function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = document.getElementById('tagInput');
+        if (input && input.value.trim()) {
+            articleEditor.addTag(input.value.trim());
+        }
+    }
+};
+
+window.addCategoryFromSuggestion = function() {
+    const select = document.getElementById('categorySuggestions');
+    if (select && select.value) {
+        articleEditor.addCategory(select.value);
+        select.value = ''; // 重置选择
+    }
+};
+
+window.addTagFromSuggestion = function() {
+    const select = document.getElementById('tagSuggestions');
+    if (select && select.value) {
+        articleEditor.addTag(select.value);
+        select.value = ''; // 重置选择
+    }
+};
+
+window.showNewCategoryModal = function() {
+    const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
+    modal.show();
+    
+    // 清空输入框并设置焦点
+    setTimeout(() => {
+        const nameInput = document.getElementById('newCategoryName');
+        if (nameInput) {
+            nameInput.value = '';
+            nameInput.focus();
+        }
+        const descInput = document.getElementById('newCategoryDescription');
+        if (descInput) {
+            descInput.value = '';
+        }
+    }, 200);
+};
+
+window.handleNewCategoryKeypress = function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        createNewCategory();
+    }
+};
+
+window.createNewCategory = function() {
+    const nameInput = document.getElementById('newCategoryName');
+    const descInput = document.getElementById('newCategoryDescription');
+    
+    if (!nameInput || !nameInput.value.trim()) {
+        alert('请输入分类名称');
+        return;
+    }
+    
+    const categoryName = nameInput.value.trim();
+    const description = descInput ? descInput.value.trim() : '';
+    
+    // 添加分类到当前文章
+    articleEditor.addCategory(categoryName);
+    
+    // 关闭模态框
+    const modal = bootstrap.Modal.getInstance(document.getElementById('newCategoryModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // 显示成功消息
+    const successMsg = document.createElement('div');
+    successMsg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    successMsg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    successMsg.innerHTML = `
+        <strong>分类创建成功！</strong> "${categoryName}" 已添加到当前文章。
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(successMsg);
+    
+    // 3秒后自动移除消息
+    setTimeout(() => {
+        if (successMsg.parentNode) {
+            successMsg.parentNode.removeChild(successMsg);
+        }
+    }, 3000);
+};

@@ -88,6 +88,9 @@
                                 <span id="currentPath" data-i18n="files.select.directory">请选择目录</span>
                             </h6>
                             <div>
+                                <button class="btn btn-sm btn-success me-2" onclick="showNewFolderModal()">
+                                    <i class="bi bi-folder-plus"></i> 新建文件夹
+                                </button>
                                 <button class="btn btn-sm btn-primary me-2" onclick="showNewArticleModal()">
                                     <i class="bi bi-file-earmark-plus"></i> <span data-i18n="files.new.article">新建文章</span>
                                 </button>
@@ -152,6 +155,44 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="files.modal.cancel">取消</button>
                     <button type="button" class="btn btn-primary" onclick="createNewArticle()" data-i18n="files.modal.create">创建文章</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建文件夹模态框 -->
+    <div class="modal fade" id="newFolderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-plus me-2"></i>新建文件夹
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newFolderForm">
+                        <div class="mb-3">
+                            <label class="form-label">当前目录</label>
+                            <input type="text" class="form-control" id="currentDirectoryDisplay" readonly>
+                            <div class="form-text">新文件夹将在此目录下创建</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">文件夹名称 *</label>
+                            <input type="text" class="form-control" id="folderName" required 
+                                   placeholder="输入文件夹名称..." onkeypress="handleFolderNameKeypress(event)">
+                            <div class="form-text">只能包含字母、数字、中划线和下划线</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">描述（可选）</label>
+                            <input type="text" class="form-control" id="folderDescription" 
+                                   placeholder="文件夹描述...">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="createNewFolder()">创建文件夹</button>
                 </div>
             </div>
         </div>
@@ -442,6 +483,94 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert(window.getTranslation && window.getTranslation('files.create.failed') || '创建失败');
+            });
+        }
+
+        // 显示新建文件夹模态框
+        function showNewFolderModal() {
+            if (!currentSelectedPath && currentSelectedPath !== '') {
+                alert('请先选择一个目录');
+                return;
+            }
+            
+            // 设置当前目录显示
+            const displayPath = currentSelectedPath || 'content/';
+            document.getElementById('currentDirectoryDisplay').value = displayPath;
+            
+            // 清空输入框
+            document.getElementById('folderName').value = '';
+            document.getElementById('folderDescription').value = '';
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('newFolderModal'));
+            modal.show();
+            
+            // 设置焦点
+            setTimeout(() => {
+                document.getElementById('folderName').focus();
+            }, 200);
+        }
+
+        // 处理文件夹名称输入的回车键
+        function handleFolderNameKeypress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                createNewFolder();
+            }
+        }
+
+        // 创建新文件夹
+        function createNewFolder() {
+            const folderName = document.getElementById('folderName').value.trim();
+            const description = document.getElementById('folderDescription').value.trim();
+            
+            if (!folderName) {
+                alert('请输入文件夹名称');
+                return;
+            }
+            
+            // 验证文件夹名称格式
+            if (!/^[a-zA-Z0-9\u4e00-\u9fa5_-]+$/.test(folderName)) {
+                alert('文件夹名称只能包含字母、数字、中文、中划线和下划线');
+                return;
+            }
+            
+            const requestData = {
+                parent_path: currentSelectedPath || '',
+                folder_name: folderName,
+                description: description
+            };
+            
+            fetch('/api/create-folder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('创建失败: ' + data.error);
+                    return;
+                }
+                
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newFolderModal'));
+                modal.hide();
+                
+                // 显示成功消息
+                alert('文件夹创建成功！');
+                
+                // 刷新目录树和文件列表
+                loadDirectoryTree();
+                if (currentSelectedPath !== null) {
+                    loadFiles(currentSelectedPath);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('创建失败: ' + error.message);
             });
         }
 

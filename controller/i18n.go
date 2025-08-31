@@ -52,7 +52,7 @@ func GetTranslations(c *gin.Context) {
 	// Common keys that should be available
 	keys := []string{
 		// Navigation
-		"nav.home", "nav.files", "nav.images", "nav.deploy", "nav.trash", "nav.settings", "nav.back",
+		"nav.home", "nav.articles", "nav.files", "nav.images", "nav.deploy", "nav.tools", "nav.books", "nav.wiki", "nav.trash", "nav.settings", "nav.back",
 		
 		// Common
 		"common.save", "common.cancel", "common.delete", "common.edit", "common.create",
@@ -123,7 +123,8 @@ func GetTranslations(c *gin.Context) {
 		"settings.preview.failed", "settings.config.preview", "settings.copy.config",
 		"settings.config.copied", "settings.repairing.filenames", "settings.repair.success",
 		"settings.repaired.files", "settings.no.files.to.repair", "settings.repair.failed.files",
-		"settings.repair.failed",
+		"settings.repair.failed", "settings.category.management", "settings.category.description", 
+		"settings.manage.categories",
 		
 		// Hugo Installation
 		"hugo.install.title", "hugo.install.description", "hugo.install.status", "hugo.install.installed",
@@ -131,6 +132,112 @@ func GetTranslations(c *gin.Context) {
 		"hugo.install.installing", "hugo.install.success", "hugo.install.failed", "hugo.install.already.installed",
 		"hugo.install.checking", "hugo.install.download", "hugo.install.extract", "hugo.install.verify",
 		"hugo.install.location", "hugo.install.platform", "hugo.install.available.version",
+		
+		// Articles
+		"articles.title", "articles.subtitle", "articles.total.count", "articles.filter", "articles.filter.year", 
+		"articles.filter.month", "articles.filter.all.years", "articles.filter.all.months", "articles.month.1", 
+		"articles.month.2", "articles.month.3", "articles.month.4", "articles.month.5", "articles.month.6", 
+		"articles.month.7", "articles.month.8", "articles.month.9", "articles.month.10", "articles.month.11", 
+		"articles.month.12", "articles.actions", "articles.filter.apply", "articles.filter.clear", "articles.list", 
+		"articles.showing", "articles.items", "articles.root.directory", "articles.edit", "articles.no.articles", 
+		"articles.no.articles.hint", "articles.back.home", "articles.current.project", "articles.delete.confirm", 
+		"articles.delete.failed", "articles.delete.success", "articles.delete.error", "articles.pagination.first", 
+		"articles.pagination.prev", "articles.pagination.next", "articles.pagination.last", "articles.tab.published", 
+		"articles.tab.drafts", "articles.tab.issues", "articles.draft.badge", "articles.search.filter", 
+		"articles.search", "articles.search.placeholder", "articles.search.actions", "articles.search.button", 
+		"articles.search.clear", "articles.filter.actions", "articles.filter.clear.all", "articles.search.results", 
+		"articles.search.found", "articles.search.articles", "articles.issues.detected", "articles.path.not.exist", 
+		"articles.publish.date", "articles.publish.date.help", "articles.editor.title", "articles.editor.content", 
+		"articles.editor.metadata", "articles.editor.settings", "articles.editor.markdown.content", 
+		"articles.editor.insert.image", "articles.editor.title.label", "articles.editor.author", 
+		"articles.editor.type", "articles.editor.categories", "articles.editor.tags", "articles.editor.url", 
+		"articles.new.article", "articles.back.to.list", "articles.preview", "articles.preview.title", 
+		"articles.preview.loading",
+		
+		// Deploy (extended)
+		"deploy.multi.title", "deploy.multi.subtitle", "deploy.server.name", "deploy.server.domain", 
+		"deploy.server.host", "deploy.server.status", "deploy.server.progress", "deploy.server.actions", 
+		"deploy.server.add", "deploy.server.config", "deploy.server.deploy", "deploy.server.build.deploy", 
+		"deploy.server.pause", "deploy.server.resume", "deploy.server.stop", "deploy.server.delete", 
+		"deploy.server.test", "deploy.status.idle", "deploy.status.building", "deploy.status.deploying", 
+		"deploy.status.success", "deploy.status.failed", "deploy.status.paused", "deploy.modal.server.config", 
+		"deploy.modal.server.name.placeholder", "deploy.modal.domain.placeholder", "deploy.modal.enabled", 
+		"deploy.modal.save", "deploy.modal.cancel", "deploy.confirm.delete", "deploy.no.servers", 
+		"deploy.no.servers.hint", "deploy.quick.operations", "deploy.build.control", "deploy.build.action", 
+		"deploy.clean.action", "deploy.build.waiting", "deploy.preview.service", "deploy.batch.operations", 
+		"deploy.full.deploy", "deploy.incremental.deploy", "deploy.build.required", "deploy.sync.status", 
+		"deploy.sync.success", "deploy.sync.failed", "deploy.sync.pending", "deploy.statistics", 
+		"deploy.files.count", "deploy.transfer.size", "deploy.no.statistics", "deploy.server.list", 
+		"deploy.server.disabled", "common.not.set", "deploy.waiting.deploy", "deploy.config.server", 
+		"deploy.test.connection", "deploy.operation.log", "deploy.clear.log", "deploy.log.ready", 
+		"deploy.domain.optional", "deploy.host.placeholder",
+		
+		// Build
+		"build.hugo.title", "build.build.site", "build.clean.build", "build.description",
+		
+		// Serve (extended)  
+		"serve.status.running", "serve.status.stopped", "serve.start.action", "serve.stop.action", 
+		"serve.restart.action", "serve.not.running",
+		
+		// Settings (extended)
+		"settings.hugo.path.not.set", "settings.title",
+		
+		// DateTime
+		"datetime.repair.title", "datetime.repair.check", "datetime.repair.batch", "datetime.repair.checking", 
+		"datetime.repair.total.files", "datetime.repair.valid.count", "datetime.repair.invalid.count", 
+		"datetime.repair.success.rate", "datetime.repair.invalid.files", "datetime.repair.problem.type", 
+		"datetime.repair.current.format", "datetime.repair.suggested.format", "datetime.repair.action", 
+		"datetime.repair.missing.date", "datetime.repair.invalid.format", "datetime.repair.read.error", 
+		"datetime.repair.cannot.fix", "datetime.repair.single.fix", "datetime.repair.all.success", 
+		"datetime.repair.all.valid", "datetime.repair.confirm", "datetime.repair.repairing", 
+		"datetime.repair.completed", "datetime.repair.success.single", "datetime.format.warning", 
+		"datetime.current.format", "datetime.suggested.format",
+		
+		// Categories
+		"categories.title", "categories.subtitle", "categories.create", "categories.add", 
+		"categories.modules.tools", "categories.modules.books", "categories.modules.wiki", 
+		"categories.form.name", "categories.form.name.placeholder", "categories.form.icon", 
+		"categories.form.icon.placeholder", "categories.form.icon.help", "categories.form.color", 
+		"categories.form.description", "categories.form.description.placeholder", "categories.form.enabled", 
+		"categories.form.sort_order", "tools.manage.categories", "books.manage.categories", 
+		"wiki.manage.categories",
+		
+		// Tools, Books, Wiki
+		"tools.title", "tools.subtitle", "tools.add.tool", "tools.form.name", "tools.form.category", 
+		"tools.form.icon", "tools.form.url", "tools.form.description", "tools.form.tags", "tools.form.favorite", 
+		"books.title", "books.subtitle", "books.add.book", "books.form.title", "books.form.category", 
+		"books.form.author", "books.form.publisher", "books.form.url", "books.form.cover", 
+		"books.form.description", "books.form.rating", "books.form.status", "books.form.tags", 
+		"books.status.want", "books.status.reading", "books.status.completed", "books.status.reference", 
+		"books.rating.unrated", "books.rating.5", "books.rating.4", "books.rating.3", "books.rating.2", 
+		"books.rating.1", "wiki.title", "wiki.subtitle", "wiki.add.entry", "wiki.form.title", 
+		"wiki.form.category", "wiki.form.type", "wiki.form.difficulty", "wiki.form.url", 
+		"wiki.form.description", "wiki.form.tags", "wiki.form.keywords", "wiki.form.official", 
+		"wiki.form.favorite", "wiki.form.frequent", "wiki.search.title", "wiki.type.guide", 
+		"wiki.type.reference", "wiki.type.tutorial", "wiki.type.glossary", "wiki.type.example", 
+		"wiki.difficulty.beginner", "wiki.difficulty.intermediate", "wiki.difficulty.advanced", 
+		"wiki.difficulty.expert", "wiki.category.ai", "wiki.category.claude", "wiki.category.mcp", 
+		"wiki.category.terms", "wiki.category.examples",
+		
+		// Images
+		"images.title", "images.subtitle", "images.upload.files", "images.filter.files", 
+		"images.select.all", "images.clear.selection", "images.download.selected", "images.delete.selected", 
+		"images.file.list", "images.file.name", "images.file.size", "images.file.type", 
+		"images.file.modified", "images.file.actions", "images.no.files", "images.no.files.hint", 
+		"images.current.hugo.project", "images.directory.title", "images.files.count", "images.total.size", 
+		"images.stats.template", "images.create.folder", "images.static.files", "images.total.files.count", 
+		"images.total.capacity", "images.image.files", "images.image.capacity", "images.no.images", 
+		"images.upload.hint", "images.upload.now", "images.upload.images", "images.upload.drop.hint", 
+		"images.upload.formats", "images.new.folder",
+		
+		// Trash
+		"trash.title", "trash.subtitle", "trash.restore.selected", "trash.empty.trash", 
+		"trash.files.count", "trash.files.list", "trash.select.all", "trash.clear.selection", 
+		"trash.permanent.delete", "trash.empty.title", "trash.empty.message", "trash.current.hugo.project", 
+		"trash.load.failed", "trash.original.path", "trash.delete.time", "trash.restore",
+		
+		// Footer
+		"footer.copyright",
 		
 		// Messages
 		"msg.save.success", "msg.deploy.success", "msg.build.success", "msg.serve.started",

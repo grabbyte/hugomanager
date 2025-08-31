@@ -1,0 +1,318 @@
+{{ define "wiki/editor.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/default.css">
+    
+    <style>
+        .CodeMirror {
+            height: 500px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        .CodeMirror-focused {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* Markdown语法高亮样式 */
+        .cm-header { color: #2563eb; font-weight: bold; }
+        .cm-strong { font-weight: bold; }
+        .cm-em { font-style: italic; }
+        .cm-link { color: #0066cc; text-decoration: underline; }
+        .cm-url { color: #0066cc; }
+        .cm-quote { color: #6a737d; font-style: italic; }
+        .cm-code { 
+            background-color: rgba(175, 184, 193, 0.2);
+            color: #d73a49;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .cm-list { color: #6f42c1; }
+        .cm-hr { color: #d1d5da; }
+        .cm-image { color: #22863a; }
+        
+        .wiki-editor-header {
+            background: linear-gradient(135deg, #fd7e14 0%, #f59f00 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    {{ template "header" . }}
+    
+    <!-- Wiki编辑器头部 -->
+    <div class="wiki-editor-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="bi bi-wikipedia me-2"></i>
+                        <span data-i18n="wiki.editor.title">编辑知识条目</span>
+                    </h2>
+                    <small class="opacity-75" data-i18n="wiki.editor.subtitle">创建和编辑知识库内容</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <!-- 操作按钮 -->
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-light" onclick="saveWikiEntry()">
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span data-i18n="common.save">保存</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-light" onclick="previewWiki()">
+                            <i class="bi bi-eye me-1"></i>
+                            <span data-i18n="common.preview">预览</span>
+                        </button>
+                        <a href="/wiki" class="btn btn-outline-light">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            <span data-i18n="wiki.back.to.list">返回列表</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Tab 导航 -->
+        <ul class="nav nav-tabs" id="wikiEditorTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="content-tab" data-bs-toggle="tab" data-bs-target="#content-pane" 
+                        type="button" role="tab" aria-controls="content-pane" aria-selected="true">
+                    <i class="bi bi-file-text me-1"></i>
+                    <span data-i18n="wiki.editor.content">内容编辑</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-pane" 
+                        type="button" role="tab" aria-controls="metadata-pane" aria-selected="false">
+                    <i class="bi bi-tags me-1"></i>
+                    <span data-i18n="wiki.editor.metadata">基本信息</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" 
+                        type="button" role="tab" aria-controls="settings-pane" aria-selected="false">
+                    <i class="bi bi-gear me-1"></i>
+                    <span data-i18n="wiki.editor.advanced">高级设置</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab 内容区域 -->
+        <div class="tab-content mt-3" id="wikiEditorTabContent">
+            <!-- 内容编辑 Tab -->
+            <div class="tab-pane fade show active" id="content-pane" role="tabpanel" aria-labelledby="content-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <form id="wikiEditorForm">
+                            <input type="hidden" id="wikiEntryId" value="{{ .EntryID }}">
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label for="wikiContentTextarea" class="form-label mb-0">
+                                        <i class="bi bi-file-text me-1"></i>
+                                        <span data-i18n="wiki.editor.markdown.content">Markdown 内容</span>
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="insertImage()">
+                                        <i class="bi bi-image"></i> <span data-i18n="wiki.editor.insert.image">插入图片</span>
+                                    </button>
+                                    <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                                </div>
+                                <div id="wikiContentEditor" class="border rounded">
+                                    <textarea id="wikiContentTextarea" style="display:none;">{{ .Content }}</textarea>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    <span data-i18n="wiki.editor.markdown.help">支持标准 Markdown 语法，包括代码块、表格、链接等。支持拖拽图片文件或使用Ctrl+V粘贴剪贴板中的图片</span>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 基本信息 Tab -->
+            <div class="tab-pane fade" id="metadata-pane" role="tabpanel" aria-labelledby="metadata-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="wikiTitle" class="form-label">
+                                    <i class="bi bi-type me-1"></i>
+                                    <span data-i18n="wiki.form.title">条目标题</span> *
+                                </label>
+                                <input type="text" class="form-control" id="wikiTitle" 
+                                       value="{{ .WikiTitle }}" placeholder="例如：MCP协议详解">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiCategory" class="form-label">
+                                    <i class="bi bi-folder me-1"></i>
+                                    <span data-i18n="wiki.form.category">分类</span>
+                                </label>
+                                <select class="form-select" id="wikiCategory" data-value="{{ .Category }}">
+                                    <!-- 分类选项将动态加载 -->
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiType" class="form-label">
+                                    <i class="bi bi-bookmark me-1"></i>
+                                    <span data-i18n="wiki.form.type">条目类型</span>
+                                </label>
+                                <select class="form-select" id="wikiType">
+                                    <option value="guide" {{ if eq .Type "guide" }}selected{{ end }} data-i18n="wiki.type.guide">使用指南</option>
+                                    <option value="reference" {{ if eq .Type "reference" }}selected{{ end }} data-i18n="wiki.type.reference">参考文档</option>
+                                    <option value="tutorial" {{ if eq .Type "tutorial" }}selected{{ end }} data-i18n="wiki.type.tutorial">教程</option>
+                                    <option value="glossary" {{ if eq .Type "glossary" }}selected{{ end }} data-i18n="wiki.type.glossary">术语解释</option>
+                                    <option value="example" {{ if eq .Type "example" }}selected{{ end }} data-i18n="wiki.type.example">示例代码</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiDifficulty" class="form-label">
+                                    <i class="bi bi-bar-chart me-1"></i>
+                                    <span data-i18n="wiki.form.difficulty">难度等级</span>
+                                </label>
+                                <select class="form-select" id="wikiDifficulty">
+                                    <option value="beginner" {{ if eq .Difficulty "beginner" }}selected{{ end }} data-i18n="wiki.difficulty.beginner">入门</option>
+                                    <option value="intermediate" {{ if eq .Difficulty "intermediate" }}selected{{ end }} data-i18n="wiki.difficulty.intermediate">中级</option>
+                                    <option value="advanced" {{ if eq .Difficulty "advanced" }}selected{{ end }} data-i18n="wiki.difficulty.advanced">高级</option>
+                                    <option value="expert" {{ if eq .Difficulty "expert" }}selected{{ end }} data-i18n="wiki.difficulty.expert">专家</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiUrl" class="form-label">
+                                    <i class="bi bi-link me-1"></i>
+                                    <span data-i18n="wiki.form.url">参考链接</span>
+                                </label>
+                                <input type="url" class="form-control" id="wikiUrl" 
+                                       value="{{ .URL }}" placeholder="https://docs.example.com/mcp-guide">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="wikiDescription" class="form-label">
+                                    <i class="bi bi-card-text me-1"></i>
+                                    <span data-i18n="wiki.form.description">条目描述</span>
+                                </label>
+                                <textarea class="form-control" id="wikiDescription" rows="3"
+                                         placeholder="详细描述这个知识条目的内容、适用场景和要点...">{{ .Description }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiTags" class="form-label">
+                                    <i class="bi bi-tags me-1"></i>
+                                    <span data-i18n="wiki.form.tags">标签</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiTags" 
+                                       value="{{ .Tags }}" placeholder="MCP,协议,Claude,API">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiKeywords" class="form-label">
+                                    <i class="bi bi-search me-1"></i>
+                                    <span data-i18n="wiki.form.keywords">搜索关键词</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiKeywords" 
+                                       value="{{ .Keywords }}" placeholder="用于搜索的关键词">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级设置 Tab -->
+            <div class="tab-pane fade" id="settings-pane" role="tabpanel" aria-labelledby="settings-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="wikiOfficial" {{ if .Official }}checked{{ end }}>
+                                    <label class="form-check-label" for="wikiOfficial">
+                                        <i class="bi bi-patch-check me-1"></i>
+                                        <span data-i18n="wiki.form.official">官方文档</span>
+                                    </label>
+                                    <div class="form-text">标记为官方权威文档</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="wikiFavorite" {{ if .Favorite }}checked{{ end }}>
+                                    <label class="form-check-label" for="wikiFavorite">
+                                        <i class="bi bi-star me-1"></i>
+                                        <span data-i18n="wiki.form.favorite">重要条目</span>
+                                    </label>
+                                    <div class="form-text">标记为重要知识点</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="wikiFrequent" {{ if .Frequent }}checked{{ end }}>
+                                    <label class="form-check-label" for="wikiFrequent">
+                                        <i class="bi bi-arrow-repeat me-1"></i>
+                                        <span data-i18n="wiki.form.frequent">常用条目</span>
+                                    </label>
+                                    <div class="form-text">标记为常用参考</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiSource" class="form-label">
+                                    <i class="bi bi-globe me-1"></i>
+                                    <span data-i18n="wiki.form.source">来源/出处</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiSource" 
+                                       value="{{ .Source }}" placeholder="例如：Anthropic官方文档">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="wikiVersion" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>
+                                    <span data-i18n="wiki.form.version">版本信息</span>
+                                </label>
+                                <input type="text" class="form-control" id="wikiVersion" 
+                                       value="{{ .Version }}" placeholder="例如：v1.2.0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <!-- CodeMirror JS -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/mode/overlay.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/gfm/gfm.js"></script>
+    
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/wiki-editor.js"></script>
+    
+</body>
+</html>
+{{ end }}

@@ -87,8 +87,17 @@ window.getTranslation = function(key, defaultText = '') {
 
 // 页面加载时初始化多语言功能
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded 事件触发，开始初始化i18n...');
     initializeI18n();
 });
+
+// 添加一个手动测试函数，在控制台可以调用
+window.testI18n = function() {
+    console.log('手动测试i18n功能:');
+    console.log('currentTranslations:', window.currentTranslations);
+    console.log('找到的data-i18n元素数量:', document.querySelectorAll('[data-i18n]').length);
+    updatePageText();
+};
 
 // 初始化国际化
 async function initializeI18n() {
@@ -136,11 +145,22 @@ function updateCurrentLanguageDisplay(language) {
 
 // 更新页面文本
 function updatePageText() {
+    console.log('正在更新页面文本，当前翻译数量:', Object.keys(window.currentTranslations).length);
+    console.log('导航栏相关翻译:', {
+        'nav.articles': window.currentTranslations['nav.articles'],
+        'nav.tools': window.currentTranslations['nav.tools'], 
+        'nav.books': window.currentTranslations['nav.books'],
+        'nav.wiki': window.currentTranslations['nav.wiki']
+    });
+    
     // 更新所有带有 data-i18n 属性的元素
     document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         if (window.currentTranslations[key]) {
+            console.log(`更新元素 ${key}: "${window.currentTranslations[key]}"`);
             element.textContent = window.currentTranslations[key];
+        } else {
+            console.warn(`翻译键 "${key}" 未找到`);
         }
     });
     
@@ -210,3 +230,5 @@ window.i18n = {
 
 // 立即执行，确保函数在页面加载时就可用
 console.log('i18n.js loaded, changeLanguage available:', typeof window.changeLanguage);
+
+// 移除重复的DOMContentLoaded监听器，因为已经在第89行有了

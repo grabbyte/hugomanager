@@ -601,6 +601,91 @@ func parseFrontMatter(content string) (map[string]interface{}, string) {
     return metadata, markdownContent
 }
 
+// Claude Prompt: 实现新建文件夹功能，支持在posts目录下创建文件夹
+func CreateFolder(c *gin.Context) {
+    var request struct {
+        ParentPath  string `json:"parent_path"`
+        FolderName  string `json:"folder_name"`
+        Description string `json:"description"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(400, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.FolderName == "" {
+        c.JSON(400, gin.H{"error": "文件夹名称不能为空"})
+        return
+    }
+    
+    // 验证文件夹名称格式，只允许字母、数字、中文、中划线和下划线
+    if !utils.ValidateFilename(request.FolderName) {
+        c.JSON(400, gin.H{"error": "文件夹名称只能包含字母、数字、中文、中划线和下划线"})
+        return
+    }
+    
+    // 清理文件夹名称
+    cleanFolderName := utils.CleanFilename(request.FolderName)
+    
+    // 构建完整路径
+    var relativePath string
+    if request.ParentPath == "" {
+        relativePath = cleanFolderName
+    } else {
+        relativePath = filepath.Join(request.ParentPath, cleanFolderName)
+    }
+    
+    fullPath := filepath.Join(config.GetContentDir(), relativePath)
+    
+    // 验证路径安全性（防止路径遍历攻击）
+    contentDir := config.GetContentDir()
+    absFullPath, err := filepath.Abs(fullPath)
+    if err != nil {
+        c.JSON(400, gin.H{"error": "无效的文件夹路径"})
+        return
+    }
+    
+    absContentDir, err := filepath.Abs(contentDir)
+    if err != nil {
+        c.JSON(500, gin.H{"error": "内部错误：无法解析内容目录"})
+        return
+    }
+    
+    if !strings.HasPrefix(absFullPath, absContentDir) {
+        c.JSON(403, gin.H{"error": "禁止在此位置创建文件夹"})
+        return
+    }
+    
+    // 检查文件夹是否已存在
+    if _, err := os.Stat(fullPath); err == nil {
+        c.JSON(409, gin.H{"error": "文件夹已存在: " + cleanFolderName})
+        return
+    }
+    
+    // 创建文件夹
+    if err := os.MkdirAll(fullPath, os.ModePerm); err != nil {
+        c.JSON(500, gin.H{"error": "创建文件夹失败: " + err.Error()})
+        return
+    }
+    
+    // 如果提供了描述，创建一个README.md文件
+    if request.Description != "" {
+        readmePath := filepath.Join(fullPath, "README.md")
+        readmeContent := fmt.Sprintf("# %s\n\n%s", cleanFolderName, request.Description)
+        if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
+            // README创建失败不影响整体操作，只记录日志
+            fmt.Printf("Warning: 无法创建README文件: %v\n", err)
+        }
+    }
+    
+    c.JSON(200, gin.H{
+        "message": "文件夹创建成功",
+        "path":    relativePath,
+        "name":    cleanFolderName,
+    })
+}
+
 // 简单的Markdown转HTML（基础实现）
 func convertMarkdownToHTML(markdown string) string {
     html := markdown

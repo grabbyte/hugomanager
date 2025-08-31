@@ -39,14 +39,14 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8">
-                    <h1 class="display-5 fw-bold mb-3">回收站</h1>
-                    <p class="lead mb-4">管理已删除的文章，可以恢复或永久删除</p>
+                    <h1 class="display-5 fw-bold mb-3" data-i18n="trash.title">回收站</h1>
+                    <p class="lead mb-4" data-i18n="trash.subtitle">管理已删除的文章，可以恢复或永久删除</p>
                     <div class="d-flex gap-3 flex-wrap">
                         <button class="btn btn-light btn-lg" onclick="restoreSelected()">
-                            <i class="bi bi-arrow-counterclockwise"></i> 恢复选中
+                            <i class="bi bi-arrow-counterclockwise"></i> <span data-i18n="trash.restore.selected">恢复选中</span>
                         </button>
                         <button class="btn btn-outline-light btn-lg" onclick="emptyTrash()">
-                            <i class="bi bi-trash3"></i> 清空回收站
+                            <i class="bi bi-trash3"></i> <span data-i18n="trash.empty.trash">清空回收站</span>
                         </button>
                     </div>
                 </div>
@@ -54,7 +54,7 @@
                     <div class="card stats-card text-center">
                         <div class="card-body">
                             <h2 class="card-title" id="trashCount">0</h2>
-                            <p class="card-text">个文件</p>
+                            <p class="card-text" data-i18n="trash.files.count">个文件</p>
                         </div>
                     </div>
                 </div>
@@ -69,24 +69,24 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="bi bi-trash"></i> 回收站文件
+                            <i class="bi bi-trash"></i> <span data-i18n="trash.files.list">回收站文件</span>
                         </h5>
                         <div>
                             <div class="btn-group" role="group">
                                 <button class="btn btn-outline-primary" onclick="selectAll()">
-                                    <i class="bi bi-check-all"></i> 全选
+                                    <i class="bi bi-check-all"></i> <span data-i18n="trash.select.all">全选</span>
                                 </button>
                                 <button class="btn btn-outline-secondary" onclick="clearSelection()">
-                                    <i class="bi bi-x"></i> 取消选择
+                                    <i class="bi bi-x"></i> <span data-i18n="trash.clear.selection">取消选择</span>
                                 </button>
                                 <button class="btn btn-outline-success" onclick="restoreSelected()" id="restoreBtn" disabled>
-                                    <i class="bi bi-arrow-counterclockwise"></i> 恢复选中
+                                    <i class="bi bi-arrow-counterclockwise"></i> <span data-i18n="trash.restore.selected">恢复选中</span>
                                 </button>
                                 <button class="btn btn-outline-danger" onclick="deleteSelected()" id="deleteBtn" disabled>
-                                    <i class="bi bi-trash3"></i> 永久删除
+                                    <i class="bi bi-trash3"></i> <span data-i18n="trash.permanent.delete">永久删除</span>
                                 </button>
                                 <button class="btn btn-outline-info" onclick="refreshTrash()">
-                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                    <i class="bi bi-arrow-clockwise"></i> <span data-i18n="common.refresh">刷新</span>
                                 </button>
                             </div>
                         </div>
@@ -107,8 +107,8 @@
                         <!-- 空状态 -->
                         <div id="emptyState" class="text-center py-5" style="display: none;">
                             <i class="bi bi-trash fs-1 text-muted mb-3"></i>
-                            <h5 class="text-muted">回收站为空</h5>
-                            <p class="text-muted">没有已删除的文件</p>
+                            <h5 class="text-muted" data-i18n="trash.empty.title">回收站为空</h5>
+                            <p class="text-muted" data-i18n="trash.empty.message">没有已删除的文件</p>
                         </div>
                     </div>
                 </div>
@@ -120,7 +120,7 @@
             <div class="col-12">
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>当前Hugo项目：</strong> {{ .HugoProjectPath }}
+                    <strong data-i18n="trash.current.hugo.project">当前Hugo项目：</strong> {{ .HugoProjectPath }}
                 </div>
             </div>
         </div>
@@ -128,7 +128,7 @@
 
     <footer class="text-center mt-5 py-4 bg-light">
         <div class="container">
-            <p class="text-muted mb-0">Hugo Manager © 2025 - 让文件管理更安全</p>
+            <p class="text-muted mb-0" data-i18n="footer.copyright">Hugo Manager © 2025 - 让文件管理更安全</p>
         </div>
     </footer>
 
@@ -161,7 +161,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('trashList').innerHTML = 
-                        '<div class="alert alert-danger m-3">加载回收站失败</div>';
+                        '<div class="alert alert-danger m-3">' + (window.i18n && window.i18n.t ? window.i18n.t('trash.load.failed') : '加载回收站失败') + '</div>';
                 });
         }
 
@@ -201,22 +201,22 @@
                                 <div class="ms-5">
                                     <small class="text-muted d-block">
                                         <i class="bi bi-folder me-1"></i>
-                                        原路径：${item.original_path}
+                                        ${window.i18n && window.i18n.t ? window.i18n.t('trash.original.path') : '原路径'}：${item.original_path}
                                     </small>
                                     <small class="text-muted">
                                         <i class="bi bi-clock me-1"></i>
-                                        删除时间：${deleteTime} • ${sizeText}
+                                        ${window.i18n && window.i18n.t ? window.i18n.t('trash.delete.time') : '删除时间'}：${deleteTime} • ${sizeText}
                                     </small>
                                 </div>
                             </div>
                             <div class="text-end">
                                 <button class="btn btn-sm btn-outline-success me-1" 
                                         onclick="event.stopPropagation(); restoreItem('${item.trash_path}')">
-                                    <i class="bi bi-arrow-counterclockwise"></i> 恢复
+                                    <i class="bi bi-arrow-counterclockwise"></i> ${window.i18n && window.i18n.t ? window.i18n.t('trash.restore') : '恢复'}
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" 
                                         onclick="event.stopPropagation(); deleteItem('${item.trash_path}')">
-                                    <i class="bi bi-trash3"></i> 永久删除
+                                    <i class="bi bi-trash3"></i> ${window.i18n && window.i18n.t ? window.i18n.t('trash.permanent.delete') : '永久删除'}
                                 </button>
                             </div>
                         </div>
@@ -285,8 +285,8 @@
             restoreBtn.disabled = count === 0;
             deleteBtn.disabled = count === 0;
             
-            restoreBtn.innerHTML = `<i class="bi bi-arrow-counterclockwise"></i> 恢复选中 (${count})`;
-            deleteBtn.innerHTML = `<i class="bi bi-trash3"></i> 永久删除 (${count})`;
+            restoreBtn.innerHTML = `<i class="bi bi-arrow-counterclockwise"></i> ${window.i18n && window.i18n.t ? window.i18n.t('trash.restore.selected') : '恢复选中'} (${count})`;
+            deleteBtn.innerHTML = `<i class="bi bi-trash3"></i> ${window.i18n && window.i18n.t ? window.i18n.t('trash.permanent.delete') : '永久删除'} (${count})`;
         }
 
         // 恢复单个文件

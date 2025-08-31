@@ -26,7 +26,11 @@
       "Bash(timeout 5 go run main.go)",
       "Bash(cp:*)",
       "Bash(timeout 10 go run main.go)",
-      "Bash(timeout 20 go run main.go)"
+      "Bash(timeout 20 go run main.go)",
+      "Bash(timeout 10 curl -s \"http://localhost:8080/\")",
+      "Bash(timeout 10 curl -s \"http://localhost:8080/test-i18n.html\")",
+      "Bash(timeout 10 curl -s \"http://localhost:8080/deploy\")",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

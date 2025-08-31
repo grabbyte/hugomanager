@@ -258,6 +258,7 @@ func Start() {
 	r.POST("/api/upload-image", controller.UploadImageFile)
 	r.POST("/api/upload-image-base64", controller.UploadImageBase64)
 	r.POST("/api/create-article", controller.CreateNewArticle)
+	r.POST("/api/create-folder", controller.CreateFolder)
 	r.POST("/api/repair-filenames", controller.RepairFilenames)
 	
 	// 时间格式修复相关API
@@ -270,6 +271,8 @@ func Start() {
 	r.GET("/tools", controller.ToolsPage)
 	r.GET("/books", controller.BooksPage) 
 	r.GET("/wiki", controller.WikiPage)
+	r.GET("/wiki/new", controller.WikiEditorPage)
+	r.GET("/wiki/edit/:id", controller.WikiEditorPage)
 	
 	// 收藏管理API路由
 	r.GET("/api/tools", controller.GetTools)
@@ -292,6 +295,8 @@ func Start() {
 	r.POST("/api/wiki", controller.AddWikiEntry)
 	r.PUT("/api/wiki/:id", controller.UpdateWikiEntry)
 	r.GET("/api/wiki/search", controller.SearchWikiEntries)
+	r.POST("/api/wiki/content", controller.SaveWikiContent)
+	r.PUT("/api/wiki/content/:id", controller.SaveWikiContent)
 	r.DELETE("/api/wiki/:id", func(c *gin.Context) {
 		c.Set("type", "wiki")
 		controller.DeleteCollectionItem(c)

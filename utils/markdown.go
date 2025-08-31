@@ -65,3 +65,14 @@ func BuildMarkdown(frontMatter FrontMatter, content string) (string, error) {
     
     return markdown, nil
 }
+
+// ExtractMarkdownBody 从Markdown文件中提取正文内容（去除Front Matter）
+func ExtractMarkdownBody(content string) string {
+    parsed, err := ParseMarkdown(content)
+    if err != nil {
+        // 如果解析失败，返回原始内容
+        return content
+    }
+    
+    return parsed.Content
+}

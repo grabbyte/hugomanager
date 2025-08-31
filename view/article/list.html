@@ -441,6 +441,15 @@
         
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            // 等待i18n初始化完成后再继续
+            setTimeout(() => {
+                // 手动触发翻译更新，确保页面文本正确显示
+                if (window.i18n && window.i18n.updatePageText) {
+                    console.log('博客管理页面：手动触发翻译更新');
+                    window.i18n.updatePageText();
+                }
+            }, 500);
+            
             // 从URL参数获取初始状态
             const urlParams = new URLSearchParams(window.location.search);
             currentPage = parseInt(urlParams.get('page')) || 1;
@@ -670,6 +679,11 @@
             });
             
             container.innerHTML = html;
+            
+            // 动态生成内容后，需要手动更新翻译
+            if (window.i18n && window.i18n.updatePageText) {
+                window.i18n.updatePageText();
+            }
         }
         
         // 渲染分页
@@ -738,6 +752,11 @@
             `;
             
             container.innerHTML = html;
+            
+            // 动态生成内容后，需要手动更新翻译
+            if (window.i18n && window.i18n.updatePageText) {
+                window.i18n.updatePageText();
+            }
         }
         
         // 更新分页信息

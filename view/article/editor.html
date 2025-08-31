@@ -43,6 +43,47 @@
         .cm-list { color: #6f42c1; }
         .cm-hr { color: #d1d5da; }
         .cm-image { color: #22863a; }
+        
+        /* 标签容器样式 */
+        .tags-container {
+            min-height: 40px;
+            background-color: #fff;
+        }
+        
+        .tag-item {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .tag-item:hover {
+            background-color: #dee2e6;
+        }
+        
+        .tag-item .tag-remove {
+            margin-left: 6px;
+            cursor: pointer;
+            color: #6c757d;
+            font-weight: bold;
+        }
+        
+        .tag-item .tag-remove:hover {
+            color: #dc3545;
+        }
+        
+        .category-tag {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .category-tag:hover {
+            background-color: #c3e6cb;
+        }
     </style>
 </head>
 <body>
@@ -180,24 +221,41 @@
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="categories" class="form-label">
+                                <label class="form-label">
                                     <i class="bi bi-folder me-1"></i>
                                     <span data-i18n="articles.editor.categories">分类</span>
+                                    <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="showNewCategoryModal()">
+                                        <i class="bi bi-plus"></i> 新建
+                                    </button>
                                 </label>
-                                <input type="text" class="form-control" id="categories" 
-                                       value="{{ range $i, $cat := .Categories }}{{ if $i }}, {{ end }}{{ $cat }}{{ end }}"
-                                       placeholder="输入分类，用逗号分隔...">
-                                <div class="form-text">例如：技术, 编程, Web开发</div>
+                                <div class="tags-container border rounded p-2 mb-2" id="categoriesContainer">
+                                    <!-- 分类标签将在这里显示 -->
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="categoryInput" 
+                                           placeholder="输入分类名称，回车添加..." onkeypress="handleCategoryKeypress(event)">
+                                    <select class="form-select" id="categorySuggestions" onchange="addCategoryFromSuggestion()">
+                                        <option value="">选择现有分类</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="categories" value="{{ range $i, $cat := .Categories }}{{ if $i }}, {{ end }}{{ $cat }}{{ end }}">
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="tags" class="form-label">
+                                <label class="form-label">
                                     <i class="bi bi-tags me-1"></i>
                                     <span data-i18n="articles.editor.tags">标签</span>
                                 </label>
-                                <input type="text" class="form-control" id="tags" 
-                                       value="{{ range $i, $tag := .Tags }}{{ if $i }}, {{ end }}{{ $tag }}{{ end }}"
-                                       placeholder="输入标签，用逗号分隔...">
-                                <div class="form-text">例如：Hugo, Go, 博客, 教程</div>
+                                <div class="tags-container border rounded p-2 mb-2" id="tagsContainer">
+                                    <!-- 标签将在这里显示 -->
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="tagInput" 
+                                           placeholder="输入标签名称，回车添加..." onkeypress="handleTagKeypress(event)">
+                                    <select class="form-select" id="tagSuggestions" onchange="addTagFromSuggestion()">
+                                        <option value="">选择常用标签</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="tags" value="{{ range $i, $tag := .Tags }}{{ if $i }}, {{ end }}{{ $tag }}{{ end }}">
                             </div>
                         </div>
                     </div>
@@ -251,6 +309,37 @@
             </div>
         </div>
     </div>
+
+    <!-- 新建分类模态框 -->
+    <div class="modal fade" id="newCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-plus me-2"></i>新建分类
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newCategoryName" class="form-label">分类名称</label>
+                        <input type="text" class="form-control" id="newCategoryName" 
+                               placeholder="输入新分类名称..." onkeypress="handleNewCategoryKeypress(event)">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newCategoryDescription" class="form-label">描述（可选）</label>
+                        <input type="text" class="form-control" id="newCategoryDescription" 
+                               placeholder="分类描述...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="createNewCategory()">创建并使用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="text-center mt-5 text-muted">
         Hugo Manager © 2025
     </footer>

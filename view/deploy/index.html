@@ -15,8 +15,8 @@
     <!-- 页面标题 -->
     <div class="page-header">
         <div class="container-fluid">
-            <h1 class="mb-0">部署管理</h1>
-            <p class="mb-0">管理多个部署目标，支持独立配置和部署控制</p>
+            <h1 class="mb-0" data-i18n="deploy.multi.title">部署管理</h1>
+            <p class="mb-0" data-i18n="deploy.multi.subtitle">管理多个部署目标，支持独立配置和部署控制</p>
         </div>
     </div>
 
@@ -25,7 +25,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h2>快速操作</h2>
+                    <h2 data-i18n="deploy.quick.operations">快速操作</h2>
                     <div>
                         <button class="btn btn-light btn-lg" onclick="showAddServerModal()">
                             <i class="bi bi-plus-circle"></i> <span data-i18n="deploy.server.add">添加服务器</span>
@@ -38,38 +38,38 @@
         <!-- 全局构建和控制区域 -->
         <div class="row mb-4">
             <div class="col-lg-2">
-                <h5 class="mb-3">构建控制</h5>
+                <h5 class="mb-3" data-i18n="deploy.build.control">构建控制</h5>
                 <div class="card action-card">
                     <div class="card-body">
                         <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <button class="btn btn-success btn-sm w-100" onclick="buildHugo()" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-hammer"></i><br>
-                                    <small>构建</small>
+                                    <small data-i18n="deploy.build.action">构建</small>
                                 </button>
                             </div>
                             <div class="col-6">
                                 <button class="btn btn-outline-primary btn-sm w-100" onclick="cleanAndBuild()" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-arrow-clockwise"></i><br>
-                                    <small>清理</small>
+                                    <small data-i18n="deploy.clean.action">清理</small>
                                 </button>
                             </div>
                         </div>
                         <div class="small text-muted">
-                            <div id="buildStatus" class="text-center">等待构建</div>
+                            <div id="buildStatus" class="text-center" data-i18n="deploy.build.waiting">等待构建</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-2">
-                <h5 class="mb-3">预览服务</h5>
+                <h5 class="mb-3" data-i18n="deploy.preview.service">预览服务</h5>
                 <div class="card action-card">
                     <div class="card-body">
                         <div class="mb-2 d-flex align-items-center">
                             <div class="status-icon status-{{ if .Hugo }}{{ .Hugo.Status }}{{ else }}stopped{{ end }}"></div>
                             <small>
-                                {{ if and .Hugo (eq .Hugo.Status "running") }}运行中{{ else }}已停止{{ end }}
+                                {{ if and .Hugo (eq .Hugo.Status "running") }}<span data-i18n="serve.status.running">运行中</span>{{ else }}<span data-i18n="serve.status.stopped">已停止</span>{{ end }}
                             </small>
                         </div>
                         {{ if and .Hugo .Hugo.URL }}
@@ -84,26 +84,26 @@
                             <div class="col-6">
                                 <button class="btn btn-outline-warning btn-sm w-100" onclick="stopHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-stop-fill"></i><br>
-                                    <small>停止</small>
+                                    <small data-i18n="serve.stop.action">停止</small>
                                 </button>
                             </div>
                             <div class="col-6">
                                 <button class="btn btn-outline-info btn-sm w-100" onclick="restartHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-arrow-clockwise"></i><br>
-                                    <small>重启</small>
+                                    <small data-i18n="serve.restart.action">重启</small>
                                 </button>
                             </div>
                             {{ else }}
                             <div class="col-6">
                                 <button class="btn btn-outline-success btn-sm w-100" onclick="startHugoServe()" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-play-fill"></i><br>
-                                    <small>启动</small>
+                                    <small data-i18n="serve.start.action">启动</small>
                                 </button>
                             </div>
                             <div class="col-6">
                                 <button class="btn btn-outline-secondary btn-sm w-100" disabled style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-dash-circle"></i><br>
-                                    <small>未运行</small>
+                                    <small data-i18n="serve.not.running">未运行</small>
                                 </button>
                             </div>
                             {{ end }}
@@ -113,42 +113,42 @@
             </div>
             
             <div class="col-lg-2">
-                <h5 class="mb-3">批量操作</h5>
+                <h5 class="mb-3" data-i18n="deploy.batch.operations">批量操作</h5>
                 <div class="card action-card">
                     <div class="card-body">
                         <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <button class="btn btn-primary btn-sm w-100" onclick="deployAllServers(false)" disabled id="deployAllBtn" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-upload"></i><br>
-                                    <small>全量</small>
+                                    <small data-i18n="deploy.full.deploy">全量</small>
                                 </button>
                             </div>
                             <div class="col-6">
                                 <button class="btn btn-outline-primary btn-sm w-100" onclick="deployAllServers(true)" disabled id="deployAllIncBtn" style="aspect-ratio: 1; min-height: 45px;">
                                     <i class="bi bi-arrow-up-circle"></i><br>
-                                    <small>增量</small>
+                                    <small data-i18n="deploy.incremental.deploy">增量</small>
                                 </button>
                             </div>
                         </div>
                         <div class="small text-muted text-center">
-                            需先构建
+                            <span data-i18n="deploy.build.required">需先构建</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-3">
-                <h5 class="mb-3">同步状态</h5>
+                <h5 class="mb-3" data-i18n="deploy.sync.status">同步状态</h5>
                 <div class="card action-card">
                     <div class="card-header bg-{{ if and .Deployment (eq .Deployment.LastSyncStatus "success") }}success{{ else if and .Deployment (eq .Deployment.LastSyncStatus "failed") }}danger{{ else }}secondary{{ end }} text-white">
                         <h6 class="mb-0">
-                            <i class="bi bi-cloud-arrow-up"></i> 同步状态
+                            <i class="bi bi-cloud-arrow-up"></i> <span data-i18n="deploy.sync.status">同步状态</span>
                         </h6>
                     </div>
                     <div class="card-body">
                         <div class="mb-2">
                             <span class="badge bg-{{ if and .Deployment (eq .Deployment.LastSyncStatus "success") }}success{{ else if and .Deployment (eq .Deployment.LastSyncStatus "failed") }}danger{{ else }}secondary{{ end }}">
-                                {{ if and .Deployment (eq .Deployment.LastSyncStatus "success") }}成功{{ else if and .Deployment (eq .Deployment.LastSyncStatus "failed") }}失败{{ else }}待同步{{ end }}
+                                {{ if and .Deployment (eq .Deployment.LastSyncStatus "success") }}<span data-i18n="deploy.sync.success">成功</span>{{ else if and .Deployment (eq .Deployment.LastSyncStatus "failed") }}<span data-i18n="deploy.sync.failed">失败</span>{{ else }}<span data-i18n="deploy.sync.pending">待同步</span>{{ end }}
                             </span>
                         </div>
                         {{ if and .Deployment .Deployment.LastSyncTime }}
@@ -170,23 +170,23 @@
             </div>
 
             <div class="col-lg-3">
-                <h5 class="mb-3">统计信息</h5>
+                <h5 class="mb-3" data-i18n="deploy.statistics">统计信息</h5>
                 <div class="card action-card">
                     <div class="card-body">
                         {{ if and .Deployment (gt .Deployment.FilesDeployed 0) }}
                         <div class="row text-center">
                             <div class="col-6">
                                 <div class="h4 mb-0 text-primary">{{ .Deployment.FilesDeployed }}</div>
-                                <small class="text-muted">个文件</small>
+                                <small class="text-muted" data-i18n="deploy.files.count">个文件</small>
                             </div>
                             <div class="col-6">
                                 <div class="h4 mb-0 text-info">{{ formatBytes .Deployment.BytesTransferred }}</div>
-                                <small class="text-muted">传输量</small>
+                                <small class="text-muted" data-i18n="deploy.transfer.size">传输量</small>
                             </div>
                         </div>
                         {{ else }}
                         <div class="text-center text-muted">
-                            <i class="bi bi-info-circle"></i> 暂无统计数据
+                            <i class="bi bi-info-circle"></i> <span data-i18n="deploy.no.statistics">暂无统计数据</span>
                         </div>
                         {{ end }}
                     </div>
@@ -200,7 +200,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="bi bi-servers"></i> <span data-i18n="deploy.title">服务器列表</span>
+                            <i class="bi bi-servers"></i> <span data-i18n="deploy.server.list">服务器列表</span>
                             <span class="badge bg-primary ms-2">{{ len .Servers }}</span>
                         </h5>
                     </div>
@@ -232,7 +232,7 @@
                                                 <div>
                                                     <strong>{{ .Name }}</strong>
                                                     {{ if not .Enabled }}
-                                                    <span class="badge bg-secondary ms-2">已禁用</span>
+                                                    <span class="badge bg-secondary ms-2" data-i18n="deploy.server.disabled">已禁用</span>
                                                     {{ end }}
                                                 </div>
                                             </div>
@@ -243,15 +243,15 @@
                                                 {{ .Domain }} <i class="bi bi-box-arrow-up-right"></i>
                                             </a>
                                             {{ else }}
-                                            <span class="text-muted">-</span>
+                                            <span class="text-muted" data-i18n="common.not.set">-</span>
                                             {{ end }}
                                         </td>
                                         <td>
                                             <code>{{ .Host }}:{{ .Port }}</code>
                                         </td>
                                         <td>
-                                            <span class="badge status-badge bg-secondary">空闲</span>
-                                            <div class="small text-muted mt-1">等待部署</div>
+                                            <span class="badge status-badge bg-secondary" data-i18n="deploy.status.idle">空闲</span>
+                                            <div class="small text-muted mt-1" data-i18n="deploy.waiting.deploy">等待部署</div>
                                         </td>
                                         <td>
                                             <div class="progress-container">
@@ -265,6 +265,7 @@
                                                 <!-- 配置按钮 -->
                                                 <button class="btn btn-sm btn-outline-primary" 
                                                         onclick="showConfigModal('{{ .ID }}')" 
+                                                        data-i18n-title="deploy.config.server"
                                                         title="配置服务器">
                                                     <i class="bi bi-gear"></i>
                                                 </button>
@@ -273,6 +274,7 @@
                                                 <!-- 测试连接 -->
                                                 <button class="btn btn-sm btn-outline-info" 
                                                         onclick="testConnection('{{ .ID }}')" 
+                                                        data-i18n-title="deploy.test.connection"
                                                         title="测试连接">
                                                     <i class="bi bi-wifi"></i>
                                                 </button>
@@ -352,15 +354,15 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="bi bi-list-ul"></i> 操作日志
+                            <i class="bi bi-list-ul"></i> <span data-i18n="deploy.operation.log">操作日志</span>
                         </h5>
                         <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
-                            <i class="bi bi-trash"></i> 清空日志
+                            <i class="bi bi-trash"></i> <span data-i18n="deploy.clear.log">清空日志</span>
                         </button>
                     </div>
                     <div class="card-body">
                         <div id="deployLog" class="log-output p-3" style="height: 200px;">
-                            <div class="text-muted">准备就绪，等待操作...</div>
+                            <div class="text-muted" data-i18n="deploy.log.ready">准备就绪，等待操作...</div>
                         </div>
                     </div>
                 </div>
@@ -373,7 +375,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">服务器配置</h5>
+                    <h5 class="modal-title" data-i18n="deploy.modal.server.config">服务器配置</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -381,73 +383,73 @@
                         <input type="hidden" id="serverId" name="server_id">
                         
                         <div class="mb-3">
-                            <label for="serverName" class="form-label">服务器名称</label>
-                            <input type="text" class="form-control" id="serverName" name="name" placeholder="例如：生产服务器" required>
+                            <label for="serverName" class="form-label" data-i18n="deploy.server.name">服务器名称</label>
+                            <input type="text" class="form-control" id="serverName" name="name" data-i18n-placeholder="deploy.modal.server.name.placeholder" placeholder="例如：生产服务器" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="serverDomain" class="form-label">域名 (可选)</label>
-                            <input type="text" class="form-control" id="serverDomain" name="domain" placeholder="例如：example.com">
+                            <label for="serverDomain" class="form-label" data-i18n="deploy.domain.optional">域名 (可选)</label>
+                            <input type="text" class="form-control" id="serverDomain" name="domain" data-i18n-placeholder="deploy.modal.domain.placeholder" placeholder="例如：example.com">
                         </div>
 
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="mb-3">
-                                    <label for="serverHost" class="form-label">服务器地址</label>
-                                    <input type="text" class="form-control" id="serverHost" name="host" placeholder="例如：192.168.1.100" required>
+                                    <label for="serverHost" class="form-label" data-i18n="deploy.server.host">服务器地址</label>
+                                    <input type="text" class="form-control" id="serverHost" name="host" data-i18n-placeholder="deploy.host.placeholder" placeholder="例如：192.168.1.100" required>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="serverPort" class="form-label">端口</label>
+                                    <label for="serverPort" class="form-label" data-i18n="common.port">端口</label>
                                     <input type="number" class="form-control" id="serverPort" name="port" value="22" required>
                                 </div>
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="serverUsername" class="form-label">用户名</label>
+                            <label for="serverUsername" class="form-label" data-i18n="deploy.username">用户名</label>
                             <input type="text" class="form-control" id="serverUsername" name="username" required>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">认证方式</label>
+                            <label class="form-label" data-i18n="deploy.auth.method">认证方式</label>
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="auth_method" id="authPassword" value="password" checked>
-                                <label class="form-check-label" for="authPassword">密码认证</label>
+                                <label class="form-check-label" for="authPassword" data-i18n="deploy.auth.password">密码认证</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="auth_method" id="authKey" value="key">
-                                <label class="form-check-label" for="authKey">私钥认证</label>
+                                <label class="form-check-label" for="authKey" data-i18n="deploy.auth.key">私钥认证</label>
                             </div>
                         </div>
 
                         <div id="passwordAuth" class="mb-3">
-                            <label for="serverPassword" class="form-label">密码</label>
+                            <label for="serverPassword" class="form-label" data-i18n="deploy.password">密码</label>
                             <input type="password" class="form-control" id="serverPassword" name="password">
                         </div>
 
                         <div id="keyAuth" class="mb-3" style="display: none;">
-                            <label for="serverKeyPath" class="form-label">私钥路径</label>
+                            <label for="serverKeyPath" class="form-label" data-i18n="deploy.keypath">私钥路径</label>
                             <input type="text" class="form-control" id="serverKeyPath" name="key_path">
                         </div>
 
                         <div class="mb-3">
-                            <label for="serverRemotePath" class="form-label">远程路径</label>
+                            <label for="serverRemotePath" class="form-label" data-i18n="deploy.remotepath">远程路径</label>
                             <input type="text" class="form-control" id="serverRemotePath" name="remote_path" placeholder="/var/www/html" required>
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="serverEnabled" name="enabled" checked>
-                                <label class="form-check-label" for="serverEnabled">启用此服务器</label>
+                                <label class="form-check-label" for="serverEnabled" data-i18n="deploy.modal.enabled">启用此服务器</label>
                             </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="document.getElementById('serverConfigForm').dispatchEvent(new Event('submit'))">保存配置</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('serverConfigForm').dispatchEvent(new Event('submit'))" data-i18n="deploy.modal.save">保存配置</button>
                 </div>
             </div>
         </div>

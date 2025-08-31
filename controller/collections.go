@@ -1088,8 +1088,255 @@ func SearchWikiEntries(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"results": results})
 }
 
-// 创建Hugo Wiki内容文件
-func createHugoWikiContent(entry CollectionItem) error {
+// Wiki编辑器页面
+func WikiEditorPage(c *gin.Context) {
+    entryID := c.Param("id")
+    
+    if entryID == "" {
+        // 新建模式
+        c.HTML(http.StatusOK, "wiki/editor.html", gin.H{
+            "Title":       "新建Wiki条目",
+            "Page":        "wiki-editor",
+            "EntryID":     "",
+            "WikiTitle":   "",
+            "Content":     "",
+            "Category":    "",
+            "Type":        "guide",
+            "Difficulty":  "beginner",
+            "URL":         "",
+            "Description": "",
+            "Tags":        "",
+            "Keywords":    "",
+            "Source":      "",
+            "Version":     "",
+            "Official":    false,
+            "Favorite":    false,
+            "Frequent":    false,
+        })
+        return
+    }
+    
+    // 编辑模式 - 加载现有条目
+    collections, err := loadCollections()
+    if err != nil {
+        c.HTML(http.StatusInternalServerError, "error.html", gin.H{
+            "Error": err.Error(),
+        })
+        return
+    }
+    
+    // 查找Wiki条目
+    var entry *CollectionItem
+    for _, categoryEntries := range collections.Wiki {
+        for _, item := range categoryEntries {
+            if item.ID == entryID {
+                entry = &item
+                break
+            }
+        }
+        if entry != nil {
+            break
+        }
+    }
+    
+    if entry == nil {
+        c.HTML(http.StatusNotFound, "error.html", gin.H{
+            "Error": "Wiki条目不存在",
+        })
+        return
+    }
+    
+    // 加载已有内容
+    wikiContent := ""
+    cleanTitle := utils.SanitizeTitle(entry.Title)
+    contentPath := filepath.Join(config.GetContentDir(), "wiki", cleanTitle+".md")
+    if contentData, err := os.ReadFile(contentPath); err == nil {
+        // 解析Markdown文件，提取正文内容（去除Front Matter）
+        wikiContent = utils.ExtractMarkdownBody(string(contentData))
+    }
+    
+    c.HTML(http.StatusOK, "wiki/editor.html", gin.H{
+        "Title":       "编辑Wiki条目",
+        "Page":        "wiki-editor",
+        "EntryID":     entry.ID,
+        "WikiTitle":   entry.Title,
+        "Content":     wikiContent,
+        "Category":    entry.Category,
+        "Type":        entry.Metadata["type"],
+        "Difficulty":  entry.Metadata["difficulty"],
+        "URL":         entry.URL,
+        "Description": entry.Description,
+        "Tags":        entry.Tags,
+        "Keywords":    entry.Metadata["keywords"],
+        "Source":      entry.Metadata["source"],
+        "Version":     entry.Metadata["version"],
+        "Official":    entry.Metadata["official"] == "true",
+        "Favorite":    entry.Favorite,
+        "Frequent":    entry.Metadata["frequent"] == "true",
+    })
+}
+
+// 保存Wiki条目内容
+func SaveWikiContent(c *gin.Context) {
+    entryID := c.Param("id")
+    
+    var request struct {
+        Title       string `json:"title"`
+        Category    string `json:"category"`
+        Type        string `json:"type"`
+        Difficulty  string `json:"difficulty"`
+        URL         string `json:"url"`
+        Description string `json:"description"`
+        Tags        string `json:"tags"`
+        Keywords    string `json:"keywords"`
+        Source      string `json:"source"`
+        Version     string `json:"version"`
+        Official    bool   `json:"official"`
+        Favorite    bool   `json:"favorite"`
+        Frequent    bool   `json:"frequent"`
+        Content     string `json:"content"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.Title == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "条目标题不能为空"})
+        return
+    }
+    
+    collections, err := loadCollections()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    now := time.Now()
+    
+    if entryID == "" {
+        // 新建模式
+        id := fmt.Sprintf("wiki_%d", now.UnixNano())
+        
+        // 创建Wiki条目
+        wikiEntry := CollectionItem{
+            ID:          id,
+            Title:       request.Title,
+            Category:    request.Category,
+            Type:        "wiki",
+            URL:         request.URL,
+            Description: request.Description,
+            Tags:        request.Tags,
+            Favorite:    request.Favorite,
+            CreatedAt:   now,
+            UpdatedAt:   now,
+            Metadata: map[string]string{
+                "type":       request.Type,
+                "difficulty": request.Difficulty,
+                "keywords":   request.Keywords,
+                "source":     request.Source,
+                "version":    request.Version,
+                "official":   strconv.FormatBool(request.Official),
+                "frequent":   strconv.FormatBool(request.Frequent),
+            },
+        }
+        
+        // 添加到对应分类
+        if collections.Wiki[request.Category] == nil {
+            collections.Wiki[request.Category] = make([]CollectionItem, 0)
+        }
+        collections.Wiki[request.Category] = append(collections.Wiki[request.Category], wikiEntry)
+        
+        // 保存数据
+        if err := saveCollections(collections); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+        
+        // 创建Hugo内容文件
+        if err := createHugoWikiContentWithBody(wikiEntry, request.Content); err != nil {
+            fmt.Printf("创建Hugo内容文件失败: %v\n", err)
+        }
+        
+        c.JSON(http.StatusOK, gin.H{
+            "message": "Wiki条目创建成功",
+            "id":      id,
+        })
+        
+    } else {
+        // 编辑模式 - 更新现有条目
+        var found bool
+        var oldCategory string
+        for category, items := range collections.Wiki {
+            for i, item := range items {
+                if item.ID == entryID {
+                    oldCategory = category
+                    
+                    // 更新Wiki条目信息
+                    item.Title = request.Title
+                    item.Category = request.Category
+                    item.URL = request.URL
+                    item.Description = request.Description
+                    item.Tags = request.Tags
+                    item.Favorite = request.Favorite
+                    item.UpdatedAt = now
+                    item.Metadata["type"] = request.Type
+                    item.Metadata["difficulty"] = request.Difficulty
+                    item.Metadata["keywords"] = request.Keywords
+                    item.Metadata["source"] = request.Source
+                    item.Metadata["version"] = request.Version
+                    item.Metadata["official"] = strconv.FormatBool(request.Official)
+                    item.Metadata["frequent"] = strconv.FormatBool(request.Frequent)
+                    
+                    // 如果分类改变了，需要移动条目
+                    if oldCategory != request.Category {
+                        // 从原分类中删除
+                        collections.Wiki[oldCategory] = append(items[:i], items[i+1:]...)
+                        
+                        // 添加到新分类
+                        if collections.Wiki[request.Category] == nil {
+                            collections.Wiki[request.Category] = make([]CollectionItem, 0)
+                        }
+                        collections.Wiki[request.Category] = append(collections.Wiki[request.Category], item)
+                    } else {
+                        // 分类未改变，直接更新
+                        collections.Wiki[category][i] = item
+                    }
+                    
+                    // 保存数据
+                    if err := saveCollections(collections); err != nil {
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                        return
+                    }
+                    
+                    // 更新Hugo内容文件
+                    if err := createHugoWikiContentWithBody(item, request.Content); err != nil {
+                        fmt.Printf("更新Hugo内容文件失败: %v\n", err)
+                    }
+                    
+                    found = true
+                    break
+                }
+            }
+            if found {
+                break
+            }
+        }
+        
+        if !found {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Wiki条目不存在"})
+            return
+        }
+        
+        c.JSON(http.StatusOK, gin.H{
+            "message": "Wiki条目更新成功",
+        })
+    }
+}
+
+// 创建Hugo Wiki内容文件（带自定义内容）
+func createHugoWikiContentWithBody(entry CollectionItem, customContent string) error {
     // 构建Hugo content路径
     wikiDir := filepath.Join(config.GetContentDir(), "wiki")
     if err := os.MkdirAll(wikiDir, os.ModePerm); err != nil {
@@ -1111,15 +1358,21 @@ func createHugoWikiContent(entry CollectionItem) error {
         URL:        "/wiki/" + cleanTitle,
     }
     
-    // 生成内容
-    content := fmt.Sprintf(`# %s
+    // 如果有自定义内容，使用自定义内容；否则生成默认内容
+    var content string
+    if customContent != "" {
+        content = customContent
+    } else {
+        // 生成默认模板内容
+        content = fmt.Sprintf(`# %s
 
 ## 条目信息
 
 - **类型**: %s
 - **分类**: %s
 - **难度**: %s
-- **链接**: [%s](%s)
+- **来源**: %s
+- **版本**: %s
 - **官方文档**: %s
 - **关键词**: %s
 
@@ -1127,17 +1380,22 @@ func createHugoWikiContent(entry CollectionItem) error {
 
 %s
 
+## 内容
+
+请在此处添加详细的知识内容...
+
 ## 相关链接
 
-- [查看原文](%s)
+- [参考链接](%s)
 
 ---
 *收录时间: %s*
 *类型: %s | 难度: %s*
 `, entry.Title, entry.Metadata["type"], entry.Category, entry.Metadata["difficulty"],
-   entry.URL, entry.URL, entry.Metadata["official"], entry.Metadata["keywords"],
-   entry.Description, entry.URL, entry.CreatedAt.Format("2006-01-02 15:04:05"),
-   entry.Metadata["type"], entry.Metadata["difficulty"])
+       entry.Metadata["source"], entry.Metadata["version"], entry.Metadata["official"], 
+       entry.Metadata["keywords"], entry.Description, entry.URL, 
+       entry.CreatedAt.Format("2006-01-02 15:04:05"), entry.Metadata["type"], entry.Metadata["difficulty"])
+    }
     
     // 构建Markdown内容
     wikiMarkdownContent, err := utils.BuildMarkdown(frontMatter, content)
@@ -1146,6 +1404,11 @@ func createHugoWikiContent(entry CollectionItem) error {
     }
     
     return os.WriteFile(filePath, []byte(wikiMarkdownContent), 0644)
+}
+
+// 创建Hugo Wiki内容文件
+func createHugoWikiContent(entry CollectionItem) error {
+    return createHugoWikiContentWithBody(entry, "")
 }
 
 // 初始化默认分类
