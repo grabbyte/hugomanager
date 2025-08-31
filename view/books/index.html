@@ -87,6 +87,10 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="text-end">
+                        <a href="/settings/categories" class="btn btn-outline-light btn-lg me-2">
+                            <i class="bi bi-gear me-2"></i>
+                            <span data-i18n="books.manage.categories">管理分类</span>
+                        </a>
                         <button class="btn btn-light btn-lg" onclick="showAddBookModal()">
                             <i class="bi bi-plus-circle me-2"></i>
                             <span data-i18n="books.add.book">添加书籍</span>
@@ -98,68 +102,7 @@
     </div>
 
     <div class="container">
-        <!-- 技术书籍分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-laptop me-2"></i>
-                <span data-i18n="books.category.technical">技术书籍</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="technicalBooks">
-                    <!-- 技术书籍将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card book-card add-book-btn" onclick="showAddBookModal('technical')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="books.add.technical">添加技术书籍</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 文档资料分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-file-earmark-text me-2"></i>
-                <span data-i18n="books.category.documentation">文档资料</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="documentationBooks">
-                    <!-- 文档资料将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card book-card add-book-btn" onclick="showAddBookModal('documentation')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="books.add.documentation">添加文档资料</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 学习资源分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-mortarboard me-2"></i>
-                <span data-i18n="books.category.learning">学习资源</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="learningBooks">
-                    <!-- 学习资源将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card book-card add-book-btn" onclick="showAddBookModal('learning')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="books.add.learning">添加学习资源</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- 分类区域将在这里动态加载 -->
     </div>
 
     <!-- 添加书籍模态框 -->
@@ -191,9 +134,7 @@
                                     <span data-i18n="books.form.category">分类</span>
                                 </label>
                                 <select class="form-select" id="bookCategory">
-                                    <option value="technical" data-i18n="books.category.technical">技术书籍</option>
-                                    <option value="documentation" data-i18n="books.category.documentation">文档资料</option>
-                                    <option value="learning" data-i18n="books.category.learning">学习资源</option>
+                                    <!-- 分类选项将动态加载 -->
                                 </select>
                             </div>
                         </div>
@@ -299,7 +240,7 @@
                         <i class="bi bi-x-circle me-1"></i>
                         <span data-i18n="common.cancel">取消</span>
                     </button>
-                    <button type="button" class="btn btn-success" onclick="addBook()">
+                    <button type="button" class="btn btn-success" id="saveBookBtn" onclick="saveBook()">
                         <i class="bi bi-plus-circle me-1"></i>
                         <span data-i18n="books.add.book">添加书籍</span>
                     </button>
@@ -315,11 +256,35 @@
         // 全局变量
         let currentCategory = '';
         let booksData = {};
+        let currentEditingId = null; // 当前编辑的书籍ID
         
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            loadCategoryOptions();
             loadBooks();
         });
+        
+        // 加载分类选项到下拉框
+        async function loadCategoryOptions() {
+            try {
+                const response = await fetch('/api/categories/active?module_type=books');
+                const data = await response.json();
+                
+                if (!data.error) {
+                    const select = document.getElementById('bookCategory');
+                    select.innerHTML = '';
+                    
+                    (data.categories || []).forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading category options:', error);
+            }
+        }
         
         // 加载书籍数据
         async function loadBooks() {
@@ -342,22 +307,82 @@
         
         // 渲染书籍列表
         function renderBooks() {
-            const categories = ['technical', 'documentation', 'learning'];
-            
-            categories.forEach(category => {
-                const container = document.getElementById(category + 'Books');
-                const books = booksData[category] || [];
+            // 先加载分类配置
+            loadActiveCategories('books').then(categories => {
+                // 清空现有分类区域
+                const mainContainer = document.querySelector('.container');
+                const existingSections = mainContainer.querySelectorAll('.category-section');
+                existingSections.forEach(section => section.remove());
                 
-                // 清空现有内容，保留添加按钮
-                const addBtn = container.querySelector('.add-book-btn').closest('.col-md-4');
-                container.innerHTML = '';
-                container.appendChild(addBtn);
-                
-                // 渲染书籍卡片
-                books.forEach(book => {
-                    const bookCard = createBookCard(book);
-                    container.insertBefore(bookCard, addBtn);
+                // 渲染每个启用的分类
+                categories.forEach(category => {
+                    createCategorySection(category);
+                    renderBooksInCategory(category.id);
                 });
+            });
+        }
+        
+        // 加载启用的分类
+        async function loadActiveCategories(moduleType) {
+            try {
+                const response = await fetch(`/api/categories/active?module_type=${moduleType}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load categories:', data.error);
+                    return [];
+                }
+                
+                return data.categories || [];
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                return [];
+            }
+        }
+        
+        // 创建分类区域
+        function createCategorySection(category) {
+            const mainContainer = document.querySelector('.container');
+            const section = document.createElement('div');
+            section.className = 'category-section';
+            section.innerHTML = `
+                <h3 class="category-header" style="background: linear-gradient(135deg, ${category.color} 0%, #20c997 100%);">
+                    <i class="bi bi-${category.icon || 'book'} me-2"></i>
+                    <span>${category.name}</span>
+                </h3>
+                <div class="category-content">
+                    <div class="row" id="${category.id}Books">
+                        <!-- 书籍将在这里动态加载 -->
+                        <div class="col-md-4 col-lg-3 mb-4">
+                            <div class="card book-card add-book-btn" onclick="showAddBookModal('${category.id}')">
+                                <div class="card-body">
+                                    <i class="bi bi-plus-circle fs-1"></i>
+                                    <p class="mb-0">添加书籍</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            mainContainer.appendChild(section);
+        }
+        
+        // 渲染指定分类的书籍
+        function renderBooksInCategory(categoryId) {
+            const container = document.getElementById(categoryId + 'Books');
+            if (!container) return;
+            
+            const books = booksData[categoryId] || [];
+            
+            // 清空现有内容，保留添加按钮
+            const addBtn = container.querySelector('.add-book-btn').closest('.col-md-4');
+            container.innerHTML = '';
+            container.appendChild(addBtn);
+            
+            // 渲染书籍卡片
+            books.forEach(book => {
+                const bookCard = createBookCard(book);
+                container.insertBefore(bookCard, addBtn);
             });
         }
         
@@ -366,10 +391,11 @@
             const col = document.createElement('div');
             col.className = 'col-md-4 col-lg-3 mb-4';
             
-            const ratingStars = book.rating ? '★'.repeat(book.rating) + '☆'.repeat(5-book.rating) : '';
-            const statusBadge = getStatusBadge(book.status);
-            const coverImage = book.cover ? 
-                `<img src="${book.cover}" class="book-cover" alt="${book.title}">` : 
+            const rating = book.metadata && book.metadata.rating ? parseInt(book.metadata.rating) : 0;
+            const ratingStars = rating > 0 ? '★'.repeat(rating) + '☆'.repeat(5-rating) : '';
+            const statusBadge = getStatusBadge(book.metadata ? book.metadata.status : '');
+            const coverImage = book.metadata && book.metadata.cover ? 
+                `<img src="${book.metadata.cover}" class="book-cover" alt="${book.title}">` : 
                 `<div class="book-cover bg-light d-flex align-items-center justify-content-center">
                     <i class="bi bi-book fs-1 text-muted"></i>
                 </div>`;
@@ -382,8 +408,8 @@
                     </div>
                     <div class="card-body">
                         <h6 class="card-title">${book.title}</h6>
-                        ${book.author ? `<p class="text-muted small mb-1">作者：${book.author}</p>` : ''}
-                        ${book.publisher ? `<p class="text-muted small mb-2">出版：${book.publisher}</p>` : ''}
+                        ${book.metadata && book.metadata.author ? `<p class="text-muted small mb-1">作者：${book.metadata.author}</p>` : ''}
+                        ${book.metadata && book.metadata.publisher ? `<p class="text-muted small mb-2">出版：${book.metadata.publisher}</p>` : ''}
                         ${ratingStars ? `<div class="rating-stars mb-2">${ratingStars}</div>` : ''}
                         <p class="card-text text-muted small">${book.description || ''}</p>
                         ${book.tags ? `<div class="mb-2">${book.tags.split(',').map(tag => `<span class="badge bg-light text-dark me-1">${tag.trim()}</span>`).join('')}</div>` : ''}
@@ -419,6 +445,8 @@
         // 显示添加书籍模态框
         function showAddBookModal(category = '') {
             currentCategory = category;
+            currentEditingId = null; // 重置编辑状态
+            
             if (category) {
                 document.getElementById('bookCategory').value = category;
             }
@@ -426,12 +454,16 @@
             // 重置表单
             document.getElementById('addBookForm').reset();
             
+            // 设置为添加模式
+            document.getElementById('addBookModalLabel').innerHTML = '<i class="bi bi-plus-circle me-2"></i>添加书籍';
+            document.getElementById('saveBookBtn').textContent = '添加书籍';
+            
             const modal = new bootstrap.Modal(document.getElementById('addBookModal'));
             modal.show();
         }
         
-        // 添加书籍
-        async function addBook() {
+        // 保存书籍（添加或更新）
+        async function saveBook() {
             const title = document.getElementById('bookTitle').value.trim();
             const category = document.getElementById('bookCategory').value;
             const author = document.getElementById('bookAuthor').value.trim();
@@ -449,33 +481,48 @@
             }
             
             try {
-                const response = await fetch('/api/books', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title: title,
-                        category: category,
-                        author: author,
-                        publisher: publisher,
-                        url: url,
-                        cover: cover,
-                        description: description,
-                        rating: rating ? parseInt(rating) : 0,
-                        status: status,
-                        tags: tags
-                    })
-                });
+                let response;
+                const requestData = {
+                    title: title,
+                    category: category,
+                    author: author,
+                    publisher: publisher,
+                    url: url,
+                    cover: cover,
+                    description: description,
+                    rating: rating ? parseInt(rating) : 0,
+                    status: status,
+                    tags: tags
+                };
+                
+                if (currentEditingId) {
+                    // 编辑模式
+                    response = await fetch(`/api/books/${currentEditingId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                } else {
+                    // 添加模式
+                    response = await fetch('/api/books', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                }
                 
                 const data = await response.json();
                 
                 if (data.error) {
-                    alert('添加失败: ' + data.error);
+                    alert(`${currentEditingId ? '更新' : '添加'}失败: ` + data.error);
                     return;
                 }
                 
-                alert('书籍添加成功！');
+                alert(`书籍${currentEditingId ? '更新' : '添加'}成功！`);
                 
                 // 隐藏模态框
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addBookModal'));
@@ -485,8 +532,8 @@
                 loadBooks();
                 
             } catch (error) {
-                console.error('Error adding book:', error);
-                alert('添加失败: ' + error.message);
+                console.error(`Error ${currentEditingId ? 'updating' : 'adding'} book:`, error);
+                alert(`${currentEditingId ? '更新' : '添加'}失败: ` + error.message);
             }
         }
         
@@ -518,9 +565,42 @@
         }
         
         // 编辑书籍
-        function editBook(bookId) {
-            // TODO: 实现编辑功能
-            alert('编辑功能即将推出');
+        async function editBook(bookId) {
+            // 查找书籍数据
+            let book = null;
+            for (const category in booksData) {
+                const found = booksData[category].find(b => b.id === bookId);
+                if (found) {
+                    book = found;
+                    break;
+                }
+            }
+            
+            if (!book) {
+                alert('书籍不存在');
+                return;
+            }
+            
+            // 填充编辑表单
+            document.getElementById('bookTitle').value = book.title || '';
+            document.getElementById('bookCategory').value = book.category || '';
+            document.getElementById('bookAuthor').value = (book.metadata && book.metadata.author) || '';
+            document.getElementById('bookPublisher').value = (book.metadata && book.metadata.publisher) || '';
+            document.getElementById('bookUrl').value = book.url || '';
+            document.getElementById('bookCover').value = (book.metadata && book.metadata.cover) || '';
+            document.getElementById('bookDescription').value = book.description || '';
+            document.getElementById('bookRating').value = (book.metadata && book.metadata.rating) || '';
+            document.getElementById('bookStatus').value = (book.metadata && book.metadata.status) || 'want-to-read';
+            document.getElementById('bookTags').value = book.tags || '';
+            
+            // 设置为编辑模式
+            currentEditingId = bookId;
+            document.getElementById('addBookModalLabel').innerHTML = '<i class=\"bi bi-pencil me-2\"></i>编辑书籍';
+            document.getElementById('saveBookBtn').textContent = '更新书籍';
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('addBookModal'));
+            modal.show();
         }
     </script>
 </body>

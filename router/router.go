@@ -177,6 +177,7 @@ func Start() {
 	r.POST("/api/check-hugo-server", controller.CheckHugoServerAPI)
 	r.GET("/api/hugo-server/status", controller.GetHugoServerStatusAPI)
 	r.GET("/settings", controller.Settings)
+	r.GET("/settings/categories", controller.CategoriesPage)
 	r.POST("/settings/update", controller.UpdateSettings)
 	r.GET("/api/browse-folders", controller.BrowseFolders)
 
@@ -273,6 +274,7 @@ func Start() {
 	// 收藏管理API路由
 	r.GET("/api/tools", controller.GetTools)
 	r.POST("/api/tools", controller.AddTool)
+	r.PUT("/api/tools/:id", controller.UpdateTool)
 	r.DELETE("/api/tools/:id", func(c *gin.Context) {
 		c.Set("type", "tools")
 		controller.DeleteCollectionItem(c)
@@ -280,19 +282,27 @@ func Start() {
 	
 	r.GET("/api/books", controller.GetBooks)
 	r.POST("/api/books", controller.AddBook)
+	r.PUT("/api/books/:id", controller.UpdateBook)
 	r.DELETE("/api/books/:id", func(c *gin.Context) {
 		c.Set("type", "books")
 		controller.DeleteCollectionItem(c)
 	})
 	
-	
 	r.GET("/api/wiki", controller.GetWikiEntries)
 	r.POST("/api/wiki", controller.AddWikiEntry)
+	r.PUT("/api/wiki/:id", controller.UpdateWikiEntry)
 	r.GET("/api/wiki/search", controller.SearchWikiEntries)
 	r.DELETE("/api/wiki/:id", func(c *gin.Context) {
 		c.Set("type", "wiki")
 		controller.DeleteCollectionItem(c)
 	})
+	
+	// 分类管理API路由
+	r.GET("/api/categories", controller.GetCategories)
+	r.GET("/api/categories/active", controller.GetActiveCategories)
+	r.POST("/api/categories", controller.CreateCategory)
+	r.PUT("/api/categories/:id", controller.UpdateCategory)
+	r.DELETE("/api/categories/:id", controller.DeleteCategory)
 
 	// 多语言相关路由
 	r.GET("/api/languages", controller.GetLanguages)

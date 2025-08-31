@@ -14,7 +14,22 @@ import (
     "time"
 )
 
-// Claude Prompt: 创建收藏管理控制器，支持Tools、Books、AI资源等独立分类管理
+// Claude Prompt: 创建收藏管理控制器，支持Tools、Books、AI资源等独立分类管理，支持动态分类配置
+
+// 分类定义结构
+type Category struct {
+    ID          string `json:"id"`
+    Name        string `json:"name"`
+    Icon        string `json:"icon"`
+    Color       string `json:"color"`
+    Description string `json:"description"`
+    ModuleType  string `json:"module_type"` // tools, books, ai-resources, wiki
+    Enabled     bool   `json:"enabled"`
+    SortOrder   int    `json:"sort_order"`
+    IsDefault   bool   `json:"is_default"` // 是否为默认分类
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
 
 // 通用收藏项目结构
 type CollectionItem struct {
@@ -37,6 +52,7 @@ type Collections struct {
     Books       map[string][]CollectionItem `json:"books"`
     AIResources map[string][]CollectionItem `json:"ai_resources"`
     Wiki        map[string][]CollectionItem `json:"wiki"`
+    Categories  map[string][]Category       `json:"categories"` // 按模块类型存储分类定义
 }
 
 // Tools页面
@@ -71,6 +87,14 @@ func WikiPage(c *gin.Context) {
     })
 }
 
+// 分类管理页面
+func CategoriesPage(c *gin.Context) {
+    c.HTML(http.StatusOK, "settings/categories.html", gin.H{
+        "Title": "分类管理",
+        "Page":  "categories",
+    })
+}
+
 // 获取收藏数据文件路径
 func getCollectionsFilePath() string {
     return filepath.Join(config.GetHugoProjectPath(), "data", "collections.json")
@@ -86,14 +110,20 @@ func loadCollections() (*Collections, error) {
         return nil, fmt.Errorf("创建data目录失败: %v", err)
     }
     
-    // 如果文件不存在，返回空结构
+    // 如果文件不存在，返回空结构并初始化默认分类
     if _, err := os.Stat(filePath); os.IsNotExist(err) {
-        return &Collections{
+        collections := &Collections{
             Tools:       make(map[string][]CollectionItem),
             Books:       make(map[string][]CollectionItem),
             AIResources: make(map[string][]CollectionItem),
             Wiki:        make(map[string][]CollectionItem),
-        }, nil
+            Categories:  make(map[string][]Category),
+        }
+        
+        // 初始化默认分类
+        initializeDefaultCategories(collections)
+        
+        return collections, nil
     }
     
     // 读取文件
@@ -119,6 +149,11 @@ func loadCollections() (*Collections, error) {
     }
     if collections.Wiki == nil {
         collections.Wiki = make(map[string][]CollectionItem)
+    }
+    if collections.Categories == nil {
+        collections.Categories = make(map[string][]Category)
+        // 初始化默认分类
+        initializeDefaultCategories(&collections)
     }
     
     return &collections, nil
@@ -223,6 +258,94 @@ func AddTool(c *gin.Context) {
     })
 }
 
+// 更新工具
+func UpdateTool(c *gin.Context) {
+    toolID := c.Param("id")
+    
+    var request struct {
+        Name        string `json:"name"`
+        Category    string `json:"category"`
+        Icon        string `json:"icon"`
+        URL         string `json:"url"`
+        Description string `json:"description"`
+        Tags        string `json:"tags"`
+        Favorite    bool   `json:"favorite"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.Name == "" || request.URL == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "工具名称和链接不能为空"})
+        return
+    }
+    
+    collections, err := loadCollections()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    // 查找并更新工具
+    var found bool
+    var oldCategory string
+    for category, items := range collections.Tools {
+        for i, item := range items {
+            if item.ID == toolID {
+                oldCategory = category
+                
+                // 更新工具信息
+                item.Title = request.Name
+                item.Category = request.Category
+                item.URL = request.URL
+                item.Description = request.Description
+                item.Tags = request.Tags
+                item.Favorite = request.Favorite
+                item.UpdatedAt = time.Now()
+                item.Metadata["icon"] = request.Icon
+                
+                // 如果分类改变了，需要移动工具
+                if oldCategory != request.Category {
+                    // 从原分类中删除
+                    collections.Tools[oldCategory] = append(items[:i], items[i+1:]...)
+                    
+                    // 添加到新分类
+                    if collections.Tools[request.Category] == nil {
+                        collections.Tools[request.Category] = make([]CollectionItem, 0)
+                    }
+                    collections.Tools[request.Category] = append(collections.Tools[request.Category], item)
+                } else {
+                    // 分类未改变，直接更新
+                    collections.Tools[category][i] = item
+                }
+                
+                found = true
+                break
+            }
+        }
+        if found {
+            break
+        }
+    }
+    
+    if !found {
+        c.JSON(http.StatusNotFound, gin.H{"error": "工具不存在"})
+        return
+    }
+    
+    // 保存数据
+    if err := saveCollections(collections); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "message": "工具更新成功",
+    })
+}
+
 // 获取书籍列表
 func GetBooks(c *gin.Context) {
     collections, err := loadCollections()
@@ -309,6 +432,100 @@ func AddBook(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
         "message": "书籍添加成功",
         "id":      id,
+    })
+}
+
+// 更新书籍
+func UpdateBook(c *gin.Context) {
+    bookID := c.Param("id")
+    
+    var request struct {
+        Title       string `json:"title"`
+        Category    string `json:"category"`
+        Author      string `json:"author"`
+        Publisher   string `json:"publisher"`
+        URL         string `json:"url"`
+        Cover       string `json:"cover"`
+        Description string `json:"description"`
+        Rating      int    `json:"rating"`
+        Status      string `json:"status"`
+        Tags        string `json:"tags"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.Title == "" || request.URL == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "书籍标题和链接不能为空"})
+        return
+    }
+    
+    collections, err := loadCollections()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    // 查找并更新书籍
+    var found bool
+    var oldCategory string
+    for category, items := range collections.Books {
+        for i, item := range items {
+            if item.ID == bookID {
+                oldCategory = category
+                
+                // 更新书籍信息
+                item.Title = request.Title
+                item.Category = request.Category
+                item.URL = request.URL
+                item.Description = request.Description
+                item.Tags = request.Tags
+                item.UpdatedAt = time.Now()
+                item.Metadata["author"] = request.Author
+                item.Metadata["publisher"] = request.Publisher
+                item.Metadata["cover"] = request.Cover
+                item.Metadata["rating"] = strconv.Itoa(request.Rating)
+                item.Metadata["status"] = request.Status
+                
+                // 如果分类改变了，需要移动书籍
+                if oldCategory != request.Category {
+                    // 从原分类中删除
+                    collections.Books[oldCategory] = append(items[:i], items[i+1:]...)
+                    
+                    // 添加到新分类
+                    if collections.Books[request.Category] == nil {
+                        collections.Books[request.Category] = make([]CollectionItem, 0)
+                    }
+                    collections.Books[request.Category] = append(collections.Books[request.Category], item)
+                } else {
+                    // 分类未改变，直接更新
+                    collections.Books[category][i] = item
+                }
+                
+                found = true
+                break
+            }
+        }
+        if found {
+            break
+        }
+    }
+    
+    if !found {
+        c.JSON(http.StatusNotFound, gin.H{"error": "书籍不存在"})
+        return
+    }
+    
+    // 保存数据
+    if err := saveCollections(collections); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "message": "书籍更新成功",
     })
 }
 
@@ -742,6 +959,102 @@ func AddWikiEntry(c *gin.Context) {
     })
 }
 
+// 更新Wiki条目
+func UpdateWikiEntry(c *gin.Context) {
+    entryID := c.Param("id")
+    
+    var request struct {
+        Title       string `json:"title"`
+        Category    string `json:"category"`
+        Type        string `json:"type"`
+        Difficulty  string `json:"difficulty"`
+        URL         string `json:"url"`
+        Description string `json:"description"`
+        Tags        string `json:"tags"`
+        Keywords    string `json:"keywords"`
+        Official    bool   `json:"official"`
+        Favorite    bool   `json:"favorite"`
+        Frequent    bool   `json:"frequent"`
+    }
+    
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+        return
+    }
+    
+    if request.Title == "" || request.URL == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "条目标题和链接不能为空"})
+        return
+    }
+    
+    collections, err := loadCollections()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    // 查找并更新Wiki条目
+    var found bool
+    var oldCategory string
+    for category, items := range collections.Wiki {
+        for i, item := range items {
+            if item.ID == entryID {
+                oldCategory = category
+                
+                // 更新Wiki条目信息
+                item.Title = request.Title
+                item.Category = request.Category
+                item.URL = request.URL
+                item.Description = request.Description
+                item.Tags = request.Tags
+                item.Favorite = request.Favorite
+                item.UpdatedAt = time.Now()
+                item.Metadata["type"] = request.Type
+                item.Metadata["difficulty"] = request.Difficulty
+                item.Metadata["keywords"] = request.Keywords
+                item.Metadata["official"] = strconv.FormatBool(request.Official)
+                item.Metadata["frequent"] = strconv.FormatBool(request.Frequent)
+                
+                // 如果分类改变了，需要移动条目
+                if oldCategory != request.Category {
+                    // 从原分类中删除
+                    collections.Wiki[oldCategory] = append(items[:i], items[i+1:]...)
+                    
+                    // 添加到新分类
+                    if collections.Wiki[request.Category] == nil {
+                        collections.Wiki[request.Category] = make([]CollectionItem, 0)
+                    }
+                    collections.Wiki[request.Category] = append(collections.Wiki[request.Category], item)
+                } else {
+                    // 分类未改变，直接更新
+                    collections.Wiki[category][i] = item
+                }
+                
+                found = true
+                break
+            }
+        }
+        if found {
+            break
+        }
+    }
+    
+    if !found {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Wiki条目不存在"})
+        return
+    }
+    
+    // 保存数据
+    if err := saveCollections(collections); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Wiki条目更新成功",
+    })
+}
+
 // 搜索Wiki条目
 func SearchWikiEntries(c *gin.Context) {
     query := c.Query("q")
@@ -833,4 +1146,76 @@ func createHugoWikiContent(entry CollectionItem) error {
     }
     
     return os.WriteFile(filePath, []byte(wikiMarkdownContent), 0644)
+}
+
+// 初始化默认分类
+func initializeDefaultCategories(collections *Collections) {
+    now := time.Now()
+    
+    // 工具管理默认分类
+    collections.Categories["tools"] = []Category{
+        {
+            ID: "development", Name: "开发工具", Icon: "code-slash", Color: "#007bff",
+            Description: "编程开发相关的工具和软件", ModuleType: "tools",
+            Enabled: true, SortOrder: 1, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "online", Name: "在线工具", Icon: "globe", Color: "#28a745",
+            Description: "网页版在线工具和服务", ModuleType: "tools",
+            Enabled: true, SortOrder: 2, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "system", Name: "系统工具", Icon: "gear", Color: "#6f42c1",
+            Description: "系统管理和维护相关工具", ModuleType: "tools",
+            Enabled: true, SortOrder: 3, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+    }
+    
+    // 书籍管理默认分类
+    collections.Categories["books"] = []Category{
+        {
+            ID: "technical", Name: "技术书籍", Icon: "laptop", Color: "#007bff",
+            Description: "技术相关的书籍和资料", ModuleType: "books",
+            Enabled: true, SortOrder: 1, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "documentation", Name: "文档资料", Icon: "file-earmark-text", Color: "#17a2b8",
+            Description: "官方文档和参考手册", ModuleType: "books",
+            Enabled: true, SortOrder: 2, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "learning", Name: "学习资源", Icon: "mortarboard", Color: "#28a745",
+            Description: "在线课程和学习资料", ModuleType: "books",
+            Enabled: true, SortOrder: 3, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+    }
+    
+    // Wiki管理默认分类
+    collections.Categories["wiki"] = []Category{
+        {
+            ID: "ai", Name: "AI编程指南", Icon: "robot", Color: "#fd7e14",
+            Description: "AI编程和机器学习相关指南", ModuleType: "wiki",
+            Enabled: true, SortOrder: 1, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "claude", Name: "Claude Code使用", Icon: "chat-dots", Color: "#6f42c1",
+            Description: "Claude Code使用教程和技巧", ModuleType: "wiki",
+            Enabled: true, SortOrder: 2, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "mcp", Name: "MCP协议", Icon: "plugin", Color: "#dc3545",
+            Description: "MCP协议相关文档和示例", ModuleType: "wiki",
+            Enabled: true, SortOrder: 3, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "terms", Name: "AI术语词典", Icon: "journal-bookmark", Color: "#ffc107",
+            Description: "AI和编程相关术语解释", ModuleType: "wiki",
+            Enabled: true, SortOrder: 4, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+        {
+            ID: "examples", Name: "实践案例", Icon: "lightbulb", Color: "#17a2b8",
+            Description: "实际项目和实践案例", ModuleType: "wiki",
+            Enabled: true, SortOrder: 5, IsDefault: true, CreatedAt: now, UpdatedAt: now,
+        },
+    }
 }

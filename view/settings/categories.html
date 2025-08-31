@@ -1,0 +1,523 @@
+{{ define "settings/categories.html" }}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="categories.title">分类管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .module-section {
+            margin-bottom: 40px;
+        }
+        .module-header {
+            background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .category-card {
+            transition: all 0.3s ease;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .category-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .category-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        .sort-handle {
+            cursor: grab;
+        }
+        .sort-handle:active {
+            cursor: grabbing;
+        }
+        .disabled-category {
+            opacity: 0.6;
+        }
+        .default-badge {
+            background: #28a745 !important;
+        }
+        .custom-badge {
+            background: #17a2b8 !important;
+        }
+    </style>
+</head>
+<body>
+    {{ template "header" . }}
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-5 fw-bold mb-3" data-i18n="categories.title">分类管理</h1>
+                    <p class="lead mb-0" data-i18n="categories.subtitle">管理工具、书籍、Wiki等模块的分类配置</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="text-end">
+                        <button class="btn btn-light btn-lg" onclick="showCreateCategoryModal()">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            <span data-i18n="categories.create">创建分类</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 工具管理分类 -->
+        <div class="module-section">
+            <div class="module-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h3 class="mb-0">
+                            <i class="bi bi-tools me-2"></i>
+                            <span data-i18n="categories.modules.tools">工具管理分类</span>
+                        </h3>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-light" onclick="showCreateCategoryModal('tools')">
+                            <i class="bi bi-plus me-1"></i>
+                            <span data-i18n="categories.add">添加分类</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="toolsCategories" class="row">
+                <!-- 工具分类列表将在这里加载 -->
+            </div>
+        </div>
+
+        <!-- 书籍管理分类 -->
+        <div class="module-section">
+            <div class="module-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h3 class="mb-0">
+                            <i class="bi bi-book me-2"></i>
+                            <span data-i18n="categories.modules.books">书籍管理分类</span>
+                        </h3>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-light" onclick="showCreateCategoryModal('books')">
+                            <i class="bi bi-plus me-1"></i>
+                            <span data-i18n="categories.add">添加分类</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="booksCategories" class="row">
+                <!-- 书籍分类列表将在这里加载 -->
+            </div>
+        </div>
+
+        <!-- Wiki管理分类 -->
+        <div class="module-section">
+            <div class="module-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h3 class="mb-0">
+                            <i class="bi bi-wikipedia me-2"></i>
+                            <span data-i18n="categories.modules.wiki">Wiki管理分类</span>
+                        </h3>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-light" onclick="showCreateCategoryModal('wiki')">
+                            <i class="bi bi-plus me-1"></i>
+                            <span data-i18n="categories.add">添加分类</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="wikiCategories" class="row">
+                <!-- Wiki分类列表将在这里加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑分类模态框 -->
+    <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalLabel">
+                        <i class="bi bi-folder-plus me-2"></i>
+                        <span data-i18n="categories.create">创建分类</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="categoryForm">
+                        <input type="hidden" id="categoryId" name="categoryId">
+                        <input type="hidden" id="moduleType" name="moduleType">
+                        
+                        <div class="mb-3">
+                            <label for="categoryName" class="form-label">
+                                <i class="bi bi-type me-1"></i>
+                                <span data-i18n="categories.form.name">分类名称</span> *
+                            </label>
+                            <input type="text" class="form-control" id="categoryName" required 
+                                   data-i18n-placeholder="categories.form.name.placeholder" 
+                                   placeholder="输入分类名称">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="categoryIcon" class="form-label">
+                                    <i class="bi bi-image me-1"></i>
+                                    <span data-i18n="categories.form.icon">图标</span>
+                                </label>
+                                <input type="text" class="form-control" id="categoryIcon" 
+                                       data-i18n-placeholder="categories.form.icon.placeholder"
+                                       placeholder="Bootstrap图标名称">
+                                <div class="form-text">
+                                    <small data-i18n="categories.form.icon.help">如：folder、tags、gear</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="categoryColor" class="form-label">
+                                    <i class="bi bi-palette me-1"></i>
+                                    <span data-i18n="categories.form.color">颜色</span>
+                                </label>
+                                <input type="color" class="form-control form-control-color" id="categoryColor" value="#007bff">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="categoryDescription" class="form-label">
+                                <i class="bi bi-file-text me-1"></i>
+                                <span data-i18n="categories.form.description">描述</span>
+                            </label>
+                            <textarea class="form-control" id="categoryDescription" rows="3"
+                                     data-i18n-placeholder="categories.form.description.placeholder" 
+                                     placeholder="分类的描述信息（可选）"></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="categoryEnabled" checked>
+                                    <label class="form-check-label" for="categoryEnabled">
+                                        <i class="bi bi-toggle-on me-1"></i>
+                                        <span data-i18n="categories.form.enabled">启用分类</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="categorySortOrder" class="form-label">
+                                    <i class="bi bi-sort-numeric-up me-1"></i>
+                                    <span data-i18n="categories.form.sort_order">排序</span>
+                                </label>
+                                <input type="number" class="form-control" id="categorySortOrder" min="1" value="1">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <span data-i18n="common.cancel">取消</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveCategory()">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <span id="saveButtonText" data-i18n="common.save">保存</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/static/js/i18n.js"></script>
+    
+    <script>
+        // 全局变量
+        let isEditMode = false;
+        let categoriesData = {};
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllCategories();
+        });
+        
+        // 加载所有模块的分类数据
+        async function loadAllCategories() {
+            const modules = ['tools', 'books', 'wiki'];
+            
+            for (const module of modules) {
+                try {
+                    const response = await fetch(`/api/categories?module_type=${module}`);
+                    const data = await response.json();
+                    
+                    if (!data.error) {
+                        categoriesData[module] = data.categories || [];
+                        renderCategories(module, categoriesData[module]);
+                    } else {
+                        console.error(`Failed to load ${module} categories:`, data.error);
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${module} categories:`, error);
+                }
+            }
+        }
+        
+        // 渲染分类列表
+        function renderCategories(moduleType, categories) {
+            const container = document.getElementById(moduleType + 'Categories');
+            container.innerHTML = '';
+            
+            // 按排序号排序
+            categories.sort((a, b) => a.sort_order - b.sort_order);
+            
+            categories.forEach(category => {
+                const categoryCard = createCategoryCard(category);
+                container.appendChild(categoryCard);
+            });
+        }
+        
+        // 创建分类卡片
+        function createCategoryCard(category) {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4';
+            
+            const enabledClass = category.enabled ? '' : 'disabled-category';
+            const badgeClass = category.is_default ? 'default-badge' : 'custom-badge';
+            const badgeText = category.is_default ? '默认' : '自定义';
+            
+            col.innerHTML = `
+                <div class="card category-card ${enabledClass}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="category-icon me-3" style="background-color: ${category.color}">
+                                <i class="bi bi-${category.icon || 'folder'}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">${category.name}</h6>
+                                <span class="badge ${badgeClass}">${badgeText}</span>
+                                ${!category.enabled ? '<span class="badge bg-secondary ms-1">已禁用</span>' : ''}
+                            </div>
+                            <div class="sort-handle text-muted">
+                                <i class="bi bi-grip-vertical"></i>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text text-muted small mb-3">
+                            ${category.description || '暂无描述'}
+                        </p>
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editCategory('${category.id}', '${category.module_type}')">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            <button class="btn btn-outline-${category.enabled ? 'warning' : 'success'} btn-sm" 
+                                    onclick="toggleCategory('${category.id}', '${category.module_type}', ${!category.enabled})">
+                                <i class="bi bi-${category.enabled ? 'eye-slash' : 'eye'}"></i>
+                                ${category.enabled ? '禁用' : '启用'}
+                            </button>
+                            ${!category.is_default ? `
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteCategory('${category.id}', '${category.module_type}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+        
+        // 显示创建分类模态框
+        function showCreateCategoryModal(moduleType = '') {
+            isEditMode = false;
+            document.getElementById('categoryForm').reset();
+            document.getElementById('categoryId').value = '';
+            document.getElementById('moduleType').value = moduleType;
+            document.getElementById('categoryColor').value = '#007bff';
+            document.getElementById('categoryEnabled').checked = true;
+            document.getElementById('categorySortOrder').value = getNextSortOrder(moduleType);
+            
+            document.getElementById('categoryModalLabel').innerHTML = '<i class="bi bi-folder-plus me-2"></i>创建分类';
+            document.getElementById('saveButtonText').textContent = '创建';
+            
+            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            modal.show();
+        }
+        
+        // 获取下一个排序号
+        function getNextSortOrder(moduleType) {
+            if (!moduleType || !categoriesData[moduleType]) return 1;
+            
+            let maxOrder = 0;
+            categoriesData[moduleType].forEach(category => {
+                if (category.sort_order > maxOrder) {
+                    maxOrder = category.sort_order;
+                }
+            });
+            return maxOrder + 1;
+        }
+        
+        // 编辑分类
+        function editCategory(categoryId, moduleType) {
+            const category = categoriesData[moduleType].find(c => c.id === categoryId);
+            if (!category) return;
+            
+            isEditMode = true;
+            document.getElementById('categoryId').value = category.id;
+            document.getElementById('moduleType').value = category.module_type;
+            document.getElementById('categoryName').value = category.name;
+            document.getElementById('categoryIcon').value = category.icon;
+            document.getElementById('categoryColor').value = category.color;
+            document.getElementById('categoryDescription').value = category.description;
+            document.getElementById('categoryEnabled').checked = category.enabled;
+            document.getElementById('categorySortOrder').value = category.sort_order;
+            
+            document.getElementById('categoryModalLabel').innerHTML = '<i class="bi bi-pencil me-2"></i>编辑分类';
+            document.getElementById('saveButtonText').textContent = '更新';
+            
+            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            modal.show();
+        }
+        
+        // 保存分类
+        async function saveCategory() {
+            const form = document.getElementById('categoryForm');
+            const formData = new FormData(form);
+            
+            const categoryData = {
+                name: document.getElementById('categoryName').value.trim(),
+                icon: document.getElementById('categoryIcon').value.trim(),
+                color: document.getElementById('categoryColor').value,
+                description: document.getElementById('categoryDescription').value.trim(),
+                module_type: document.getElementById('moduleType').value
+            };
+            
+            if (!categoryData.name || !categoryData.module_type) {
+                alert('请填写分类名称和选择模块类型');
+                return;
+            }
+            
+            try {
+                let response;
+                if (isEditMode) {
+                    // 更新分类
+                    const categoryId = document.getElementById('categoryId').value;
+                    const updateData = {
+                        ...categoryData,
+                        enabled: document.getElementById('categoryEnabled').checked,
+                        sort_order: parseInt(document.getElementById('categorySortOrder').value)
+                    };
+                    
+                    response = await fetch(`/api/categories/${categoryId}?module_type=${categoryData.module_type}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                } else {
+                    // 创建新分类
+                    response = await fetch('/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(categoryData)
+                    });
+                }
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert('操作失败: ' + result.error);
+                    return;
+                }
+                
+                alert(isEditMode ? '分类更新成功！' : '分类创建成功！');
+                
+                // 隐藏模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+                modal.hide();
+                
+                // 重新加载分类列表
+                loadAllCategories();
+                
+            } catch (error) {
+                console.error('Error saving category:', error);
+                alert('操作失败: ' + error.message);
+            }
+        }
+        
+        // 切换分类启用/禁用状态
+        async function toggleCategory(categoryId, moduleType, enable) {
+            try {
+                const response = await fetch(`/api/categories/${categoryId}?module_type=${moduleType}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enable })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert('操作失败: ' + result.error);
+                    return;
+                }
+                
+                // 重新加载分类列表
+                loadAllCategories();
+                
+            } catch (error) {
+                console.error('Error toggling category:', error);
+                alert('操作失败: ' + error.message);
+            }
+        }
+        
+        // 删除分类
+        async function deleteCategory(categoryId, moduleType) {
+            if (!confirm('确定要删除这个分类吗？删除后无法恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/categories/${categoryId}?module_type=${moduleType}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert('删除失败: ' + result.error);
+                    return;
+                }
+                
+                alert('分类删除成功！');
+                
+                // 重新加载分类列表
+                loadAllCategories();
+                
+            } catch (error) {
+                console.error('Error deleting category:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+{{ end }}

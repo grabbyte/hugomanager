@@ -74,6 +74,10 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="text-end">
+                        <a href="/settings/categories" class="btn btn-outline-light btn-lg me-2">
+                            <i class="bi bi-gear me-2"></i>
+                            <span data-i18n="tools.manage.categories">管理分类</span>
+                        </a>
                         <button class="btn btn-light btn-lg" onclick="showAddToolModal()">
                             <i class="bi bi-plus-circle me-2"></i>
                             <span data-i18n="tools.add.tool">添加工具</span>
@@ -85,68 +89,7 @@
     </div>
 
     <div class="container">
-        <!-- 开发工具分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-code-slash me-2"></i>
-                <span data-i18n="tools.category.development">开发工具</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="developmentTools">
-                    <!-- 开发工具将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('development')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="tools.add.development">添加开发工具</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 在线工具分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-globe me-2"></i>
-                <span data-i18n="tools.category.online">在线工具</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="onlineTools">
-                    <!-- 在线工具将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('online')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="tools.add.online">添加在线工具</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 系统工具分类 -->
-        <div class="category-section">
-            <h3 class="category-header">
-                <i class="bi bi-gear me-2"></i>
-                <span data-i18n="tools.category.system">系统工具</span>
-            </h3>
-            <div class="category-content">
-                <div class="row" id="systemTools">
-                    <!-- 系统工具将在这里动态加载 -->
-                    <div class="col-md-4 col-lg-3 mb-4">
-                        <div class="card tool-card add-tool-btn" onclick="showAddToolModal('system')">
-                            <div class="card-body">
-                                <i class="bi bi-plus-circle fs-1"></i>
-                                <p class="mb-0" data-i18n="tools.add.system">添加系统工具</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- 分类区域将在这里动态加载 -->
     </div>
 
     <!-- 添加工具模态框 -->
@@ -181,9 +124,7 @@
                                     <span data-i18n="tools.form.category">分类</span>
                                 </label>
                                 <select class="form-select" id="toolCategory">
-                                    <option value="development" data-i18n="tools.category.development">开发工具</option>
-                                    <option value="online" data-i18n="tools.category.online">在线工具</option>
-                                    <option value="system" data-i18n="tools.category.system">系统工具</option>
+                                    <!-- 分类选项将动态加载 -->
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -248,7 +189,7 @@
                         <i class="bi bi-x-circle me-1"></i>
                         <span data-i18n="common.cancel">取消</span>
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="addTool()">
+                    <button type="button" class="btn btn-primary" id="saveToolBtn" onclick="saveTool()">
                         <i class="bi bi-plus-circle me-1"></i>
                         <span data-i18n="tools.add.tool">添加工具</span>
                     </button>
@@ -264,11 +205,35 @@
         // 全局变量
         let currentCategory = '';
         let toolsData = {};
+        let currentEditingId = null; // 当前编辑的工具ID
         
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            loadCategoryOptions();
             loadTools();
         });
+        
+        // 加载分类选项到下拉框
+        async function loadCategoryOptions() {
+            try {
+                const response = await fetch('/api/categories/active?module_type=tools');
+                const data = await response.json();
+                
+                if (!data.error) {
+                    const select = document.getElementById('toolCategory');
+                    select.innerHTML = '';
+                    
+                    (data.categories || []).forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading category options:', error);
+            }
+        }
         
         // 加载工具数据
         async function loadTools() {
@@ -291,31 +256,94 @@
         
         // 渲染工具列表
         function renderTools() {
-            const categories = ['development', 'online', 'system'];
-            
-            categories.forEach(category => {
-                const container = document.getElementById(category + 'Tools');
-                const tools = toolsData[category] || [];
+            // 先加载分类配置
+            loadActiveCategories('tools').then(categories => {
+                // 清空现有分类区域
+                const mainContainer = document.querySelector('.container');
+                const existingSections = mainContainer.querySelectorAll('.category-section');
+                existingSections.forEach(section => section.remove());
                 
-                // 清空现有内容，保留添加按钮
-                const addBtn = container.querySelector('.add-tool-btn').closest('.col-md-4');
-                container.innerHTML = '';
-                container.appendChild(addBtn);
-                
-                // 渲染工具卡片
-                tools.forEach(tool => {
-                    const toolCard = createToolCard(tool);
-                    container.insertBefore(toolCard, addBtn);
+                // 渲染每个启用的分类
+                categories.forEach(category => {
+                    createCategorySection(category);
+                    renderToolsInCategory(category.id);
                 });
+            });
+        }
+        
+        // 加载启用的分类
+        async function loadActiveCategories(moduleType) {
+            try {
+                const response = await fetch(`/api/categories/active?module_type=${moduleType}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load categories:', data.error);
+                    return [];
+                }
+                
+                return data.categories || [];
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                return [];
+            }
+        }
+        
+        // 创建分类区域
+        function createCategorySection(category) {
+            const mainContainer = document.querySelector('.container');
+            const section = document.createElement('div');
+            section.className = 'category-section';
+            section.innerHTML = `
+                <h3 class="category-header" style="background: linear-gradient(135deg, ${category.color} 0%, #764ba2 100%);">
+                    <i class="bi bi-${category.icon || 'folder'} me-2"></i>
+                    <span>${category.name}</span>
+                </h3>
+                <div class="category-content">
+                    <div class="row" id="${category.id}Tools">
+                        <!-- 工具将在这里动态加载 -->
+                        <div class="col-md-4 col-lg-3 mb-4">
+                            <div class="card tool-card add-tool-btn" onclick="showAddToolModal('${category.id}')">
+                                <div class="card-body">
+                                    <i class="bi bi-plus-circle fs-1"></i>
+                                    <p class="mb-0">添加工具</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            mainContainer.appendChild(section);
+        }
+        
+        // 渲染指定分类的工具
+        function renderToolsInCategory(categoryId) {
+            const container = document.getElementById(categoryId + 'Tools');
+            if (!container) return;
+            
+            const tools = toolsData[categoryId] || [];
+            
+            // 清空现有内容，保留添加按钮
+            const addBtn = container.querySelector('.add-tool-btn').closest('.col-md-4');
+            container.innerHTML = '';
+            container.appendChild(addBtn);
+            
+            // 渲染工具卡片
+            tools.forEach(tool => {
+                const toolCard = createToolCard(tool);
+                container.insertBefore(toolCard, addBtn);
             });
         }
         
         // 创建工具卡片
         function createToolCard(tool) {
+            // 添加调试信息
+            console.log('Creating tool card for:', tool);
+            
             const col = document.createElement('div');
             col.className = 'col-md-4 col-lg-3 mb-4';
             
-            const iconClass = tool.icon ? `bi bi-${tool.icon}` : 'bi bi-tools';
+            const iconClass = tool.metadata && tool.metadata.icon ? `bi bi-${tool.metadata.icon}` : 'bi bi-tools';
             const favoriteIcon = tool.favorite ? '<i class="bi bi-star-fill text-warning position-absolute top-0 end-0 m-2"></i>' : '';
             
             col.innerHTML = `
@@ -325,11 +353,11 @@
                         <div class="tool-icon">
                             <i class="${iconClass}"></i>
                         </div>
-                        <h6 class="card-title">${tool.name}</h6>
+                        <h6 class="card-title">${tool.title}</h6>
                         <p class="card-text text-muted small">${tool.description || ''}</p>
                         ${tool.tags ? `<div class="mb-2">${tool.tags.split(',').map(tag => `<span class="badge bg-light text-dark me-1">${tag.trim()}</span>`).join('')}</div>` : ''}
                         <div class="d-flex justify-content-center gap-2">
-                            <a href="${tool.url}" target="_blank" class="btn btn-primary btn-sm">
+                            <a href="${tool.url || '#'}" target="_blank" class="btn btn-primary btn-sm">
                                 <i class="bi bi-box-arrow-up-right"></i> 打开
                             </a>
                             <button class="btn btn-outline-secondary btn-sm" onclick="editTool('${tool.id}')">
@@ -349,6 +377,8 @@
         // 显示添加工具模态框
         function showAddToolModal(category = '') {
             currentCategory = category;
+            currentEditingId = null; // 重置编辑状态
+            
             if (category) {
                 document.getElementById('toolCategory').value = category;
             }
@@ -356,12 +386,16 @@
             // 重置表单
             document.getElementById('addToolForm').reset();
             
+            // 设置为添加模式
+            document.getElementById('addToolModalLabel').innerHTML = '<i class=\"bi bi-plus-circle me-2\"></i>添加工具';
+            document.getElementById('saveToolBtn').textContent = '添加工具';
+            
             const modal = new bootstrap.Modal(document.getElementById('addToolModal'));
             modal.show();
         }
         
-        // 添加工具
-        async function addTool() {
+        // 保存工具（添加或更新）
+        async function saveTool() {
             const name = document.getElementById('toolName').value.trim();
             const category = document.getElementById('toolCategory').value;
             const icon = document.getElementById('toolIcon').value.trim();
@@ -376,30 +410,45 @@
             }
             
             try {
-                const response = await fetch('/api/tools', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: name,
-                        category: category,
-                        icon: icon,
-                        url: url,
-                        description: description,
-                        tags: tags,
-                        favorite: favorite
-                    })
-                });
+                let response;
+                const requestData = {
+                    name: name,
+                    category: category,
+                    icon: icon,
+                    url: url,
+                    description: description,
+                    tags: tags,
+                    favorite: favorite
+                };
+                
+                if (currentEditingId) {
+                    // 编辑模式
+                    response = await fetch(`/api/tools/${currentEditingId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                } else {
+                    // 添加模式
+                    response = await fetch('/api/tools', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                }
                 
                 const data = await response.json();
                 
                 if (data.error) {
-                    alert('添加失败: ' + data.error);
+                    alert(`${currentEditingId ? '更新' : '添加'}失败: ` + data.error);
                     return;
                 }
                 
-                alert('工具添加成功！');
+                alert(`工具${currentEditingId ? '更新' : '添加'}成功！`);
                 
                 // 隐藏模态框
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addToolModal'));
@@ -409,8 +458,8 @@
                 loadTools();
                 
             } catch (error) {
-                console.error('Error adding tool:', error);
-                alert('添加失败: ' + error.message);
+                console.error(`Error ${currentEditingId ? 'updating' : 'adding'} tool:`, error);
+                alert(`${currentEditingId ? '更新' : '添加'}失败: ` + error.message);
             }
         }
         
@@ -442,9 +491,39 @@
         }
         
         // 编辑工具
-        function editTool(toolId) {
-            // TODO: 实现编辑功能
-            alert('编辑功能即将推出');
+        async function editTool(toolId) {
+            // 查找工具数据
+            let tool = null;
+            for (const category in toolsData) {
+                const found = toolsData[category].find(t => t.id === toolId);
+                if (found) {
+                    tool = found;
+                    break;
+                }
+            }
+            
+            if (!tool) {
+                alert('工具不存在');
+                return;
+            }
+            
+            // 填充编辑表单
+            document.getElementById('toolName').value = tool.title || '';
+            document.getElementById('toolCategory').value = tool.category || '';
+            document.getElementById('toolIcon').value = (tool.metadata && tool.metadata.icon) || '';
+            document.getElementById('toolUrl').value = tool.url || '';
+            document.getElementById('toolDescription').value = tool.description || '';
+            document.getElementById('toolTags').value = tool.tags || '';
+            document.getElementById('toolFavorite').checked = tool.favorite || false;
+            
+            // 设置为编辑模式
+            currentEditingId = toolId;
+            document.getElementById('addToolModalLabel').innerHTML = '<i class=\"bi bi-pencil me-2\"></i>编辑工具';
+            document.getElementById('saveToolBtn').textContent = '更新工具';
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('addToolModal'));
+            modal.show();
         }
     </script>
 </body>
